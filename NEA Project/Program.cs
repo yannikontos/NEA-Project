@@ -47,7 +47,6 @@ namespace NEA_Project
             MainMenu();
 
 
-
             conn.Close();
 
             Console.ReadKey();
