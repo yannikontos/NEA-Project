@@ -159,9 +159,52 @@ namespace NEA_Project
         public static void AdminPage()
         {
             Console.Clear();
+
+            int AdminInitialChoice;
+            bool decision = false;
+            int clearScreen = 0;
+
             Console.WriteLine("stress test for the admin's page");
             Console.WriteLine("would you like to: ");
+            Console.WriteLine("1. Check all products in the database ");
+            Console.WriteLine("2. Check all customers in the database");
+            Console.WriteLine("3. Exit to main menu");
 
+            while (!decision)
+            {
+                try
+                {
+                    AdminInitialChoice = int.Parse(Console.ReadLine());
+
+                    if (AdminInitialChoice >= 1 && AdminInitialChoice <= 4)
+                    {
+                        decision = true;
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid choice. Please enter numbers in the range 1-3.");
+                    }
+
+                    switch (AdminInitialChoice)
+                    {
+                        case 1:
+                            CheckStock();
+                            break;
+                        case 2:
+                            DisplayCustomerAccountDetails();
+                            break;
+                        case 3:
+                            MainMenu();
+                            break;
+                    }
+                }
+                catch (FormatException)
+                {
+                    Console.WriteLine("Please enter a valid integer data type");
+                }
+                clearScreen++;
+                if (clearScreen >= 5) { AdminPage(); }
+            }
         }
         public static void StartMenuInformation()
         {
