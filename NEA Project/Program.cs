@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Data.SQLite;
+using System.Threading;
 
 namespace NEA_Project
 {
@@ -41,11 +42,12 @@ namespace NEA_Project
     internal class Program
     {
         public static SQLiteConnection conn = new SQLiteConnection("Data Source=databaseNEA.db;Version=3;New=True;Compress=True;");
+        //tables in my db are: 'Products', 'Customers', 'Orders', 'ProductsInOrders'
         static void Main(string[] args)
         {
             conn.Open();
             MainMenu();
-
+            
 
             conn.Close();
 
@@ -70,7 +72,7 @@ namespace NEA_Project
                     }
                     else 
                     { 
-                        Console.WriteLine("Invalid choice. Please enter numbers in the range 1-4."); 
+                        Console.WriteLine("Invalid choice. Please enter integers in the range 1-4."); 
                     };
 
                     switch (choice)
@@ -85,13 +87,16 @@ namespace NEA_Project
                             StartMenuInformation();
                             break;
                         case 4:
-                            Console.WriteLine("Goodbye!");
+                            Console.Clear();
+                            Console.WriteLine("Goodbye! Exiting The Program Now...");
+                            Thread.Sleep(2500);
+                            Environment.Exit(0);
                             break;
                     }
                 }
-                catch (FormatException)
+                catch (Exception ex) when (ex is FormatException || ex is OverflowException) 
                 {
-                    Console.WriteLine("Please enter a valid integer data type");
+                    Console.WriteLine("Invalid choice. Please enter integers in the range 1-4.");
                 }
                 clearScreen++;
                 if (clearScreen >= 5) { MainMenu(); }
@@ -119,19 +124,19 @@ namespace NEA_Project
                 {
                     CustomerInitialChoice = int.Parse(Console.ReadLine());
 
-                    if (CustomerInitialChoice >= 1 && CustomerInitialChoice <= 4)
+                    if (CustomerInitialChoice >= 1 && CustomerInitialChoice <= 5)
                     {
                         decision = true;
                     }
                     else
                     {
-                        Console.WriteLine("Invalid choice. Please enter numbers in the range 1-4.");
+                        Console.WriteLine("Invalid choice. Please enter integers in the range 1-5.");
                     }
 
                     switch (CustomerInitialChoice)
                     {
                         case 1:
-                            CheckStock();
+                            CheckCustomerStockPanel();
                             break;
                         case 2:
                             DisplayCustomerAccountDetails();
@@ -147,9 +152,9 @@ namespace NEA_Project
                             break;
                     }
                 }
-                catch (FormatException)
+                catch (Exception ex) when (ex is FormatException || ex is OverflowException)
                 {
-                    Console.WriteLine("Please enter a valid integer data type");
+                    Console.WriteLine("Invalid choice. Please enter integers in the range 1-5.");
                 }
                 clearScreen++;
                 if (clearScreen >= 5) { CustomerPage(); }
@@ -176,19 +181,19 @@ namespace NEA_Project
                 {
                     AdminInitialChoice = int.Parse(Console.ReadLine());
 
-                    if (AdminInitialChoice >= 1 && AdminInitialChoice <= 4)
+                    if (AdminInitialChoice >= 1 && AdminInitialChoice <= 3)
                     {
                         decision = true;
                     }
                     else
                     {
-                        Console.WriteLine("Invalid choice. Please enter numbers in the range 1-3.");
+                        Console.WriteLine("Invalid choice. Please enter integers in the range 1-3.");
                     }
 
                     switch (AdminInitialChoice)
                     {
                         case 1:
-                            CheckStock();
+                            CheckAdminStockPanel();
                             break;
                         case 2:
                             DisplayCustomerAccountDetails();
@@ -198,13 +203,23 @@ namespace NEA_Project
                             break;
                     }
                 }
-                catch (FormatException)
+                catch (Exception ex) when (ex is FormatException || ex is OverflowException)
                 {
-                    Console.WriteLine("Please enter a valid integer data type");
+                    Console.WriteLine("Invalid choice. Please enter integers in the range 1-3.");
                 }
                 clearScreen++;
                 if (clearScreen >= 5) { AdminPage(); }
             }
+        }
+        public static void CheckAdminStockPanel()
+        {
+            SQLiteCommand sqlSelect = new SQLiteCommand("SELECT * FROM Products", conn);
+            SQLiteDataReader reader; 
+            reader = sqlSelect.ExecuteReader();
+            reader.Read();
+
+            Console.WriteLine((string)reader["*"]);
+
         }
         public static void StartMenuInformation()
         {
@@ -237,15 +252,15 @@ namespace NEA_Project
                         Console.WriteLine("Enter '1' to exit");
                     }
                 }
-                catch (FormatException)
+                catch (Exception ex) when (ex is FormatException || ex is OverflowException)
                 {
-                    Console.WriteLine("Please enter a valid integer data type");
+                    Console.WriteLine("Please submit the number '1' when ready to exit");
                 }
                 clearScreen++;
                 if (clearScreen >= 5) { StartMenuInformation(); }
             }
         }
-        public static void CheckStock()
+        public static void CheckCustomerStockPanel()
         {
             Console.WriteLine("list of items will be queried and displayed here");
         }
