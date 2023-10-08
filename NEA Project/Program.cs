@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Data.SQLite;
 using System.Threading;
+using System.Security.Cryptography.X509Certificates;
 
 namespace NEA_Project
 {
@@ -173,7 +174,9 @@ namespace NEA_Project
             Console.WriteLine("would you like to: ");
             Console.WriteLine("1. Check all products in the database ");
             Console.WriteLine("2. Check all customers in the database");
-            Console.WriteLine("3. Exit to main menu");
+            Console.WriteLine("3. Check all customer's orders");
+            Console.WriteLine("4. Check all products used in orders");
+            Console.WriteLine("5. Exit to main menu");
 
             while (!decision)
             {
@@ -187,7 +190,7 @@ namespace NEA_Project
                     }
                     else
                     {
-                        Console.WriteLine("Invalid choice. Please enter integers in the range 1-3.");
+                        Console.WriteLine("Invalid choice. Please enter integers in the range 1-5.");
                     }
 
                     switch (AdminInitialChoice)
@@ -197,15 +200,21 @@ namespace NEA_Project
                             break;
                         case 2:
                             DisplayCustomerAccountDetails();
-                            break;
+                            break;                 
                         case 3:
+                            ViewAllCustomerOrders();
+                            break;                 
+                        case 4:
+                            ViewProductsInOrders();
+                            break;
+                        case 5:
                             MainMenu();
                             break;
                     }
                 }
                 catch (Exception ex) when (ex is FormatException || ex is OverflowException)
                 {
-                    Console.WriteLine("Invalid choice. Please enter integers in the range 1-3.");
+                    Console.WriteLine("Invalid choice. Please enter integers in the range 1-5.");
                 }
                 clearScreen++;
                 if (clearScreen >= 5) { AdminPage(); }
@@ -213,13 +222,174 @@ namespace NEA_Project
         }
         public static void CheckAdminStockPanel()
         {
+            // this function is used to check to see if there are any products in stock, if so then will ask the user if they want to filter through the table 
+         
+            Console.Clear();
+            Products products = new Products();
             SQLiteCommand sqlSelect = new SQLiteCommand("SELECT * FROM Products", conn);
             SQLiteDataReader reader; 
             reader = sqlSelect.ExecuteReader();
-            reader.Read();
+            Console.WriteLine("These are the currently listed Products in the database: \n");
+            bool decision = false;
+            char choice;
+            int clearScreen = 0;
 
-            Console.WriteLine((string)reader["*"]);
+            if (reader.HasRows)
+            {
+                while (reader.Read())
+                {
+                    bool DoProductsExist = true;
+                    int productId = Convert.ToInt32(reader["ProductId"]);
+                    string productName = reader["ProductName"].ToString();
+                    string description = reader["Description"].ToString();
+                    decimal price = Convert.ToDecimal(reader["Price"]);
+                    int stockQuantity = Convert.ToInt32(reader["StockQuantity"]);
 
+                    Console.WriteLine($" ProductId: {productId} \n ProductName: {productName} \n Description: {description}");
+
+                    if (price > 50) { Console.ForegroundColor = ConsoleColor.Red; } else { Console.ForegroundColor = ConsoleColor.Green; }
+                    Console.WriteLine($" Price: £{price}");
+
+                    if (stockQuantity < 10) { Console.ForegroundColor = ConsoleColor.Red; } else { Console.ForegroundColor = ConsoleColor.Green; }
+                    Console.WriteLine($" StockQuantity: {stockQuantity} \n");
+
+                    Console.ResetColor();
+
+                    Console.WriteLine("Would you like to add more products to the database? [Y/N]");
+
+                    try
+                    {
+                        choice = Char.ToLower(char.Parse(Console.ReadLine()));
+                        if (choice != 'y' || choice != 'n') { Console.WriteLine("Invalid choice. Please enter either [Y/N]"); } else { decision = true; }
+
+                        switch (choice)
+                        {
+                            case 'y':
+                                AddRecordsToTables(DoProductsExist, productId);
+                                break;
+                            case 'n':
+                                AdminPage();
+                                break;
+                        }
+                    }
+                    catch (Exception ex) when (ex is FormatException || ex is OverflowException)
+                    {
+                        Console.WriteLine("Invalid choice. Please enter either [Y/N].");
+                    }
+                    AddRecordsToTables(DoProductsExist, productId);
+                }
+            }
+            else
+            {
+                Console.WriteLine("There are no currently listed items in the 'Products' table, would you like to add some? [Y/N]");
+                int productId = 0;
+                bool DoProductsExist = false;
+
+                while (!decision)
+                {
+                    try
+                    {
+                        choice = Char.ToLower(char.Parse(Console.ReadLine()));
+
+                        if (choice != 'y' || choice != 'n') { Console.WriteLine("Invalid choice. Please enter either [Y/N]"); } else { decision = true; }
+
+                        switch (choice) 
+                        {
+                            case 'y':
+                                AddRecordsToTables(DoProductsExist, productId);
+                                break;
+                            case 'n':
+                                AdminPage();
+                                break;
+                        }
+                    }
+                    catch (Exception ex) when (ex is FormatException || ex is OverflowException)
+                    {
+                        Console.WriteLine("Invalid choice. Please enter [Y/N]");
+                    }
+                    clearScreen++;
+                    if (clearScreen >= 5) { CheckAdminStockPanel(); }
+                }
+            }
+
+        }
+
+        public static void AddRecordsToTables(bool DoProductsExist, int productId)
+        {
+            Console.Clear();
+            string ProductName, Description;
+            int StockQuantity;
+            decimal Price;
+
+            try
+            {
+                Console.WriteLine("Enter your desired product name");
+                ProductName = Console.ReadLine();
+
+                Console.WriteLine("Enter your description for your product");
+                Description = Console.ReadLine();
+
+                Console.WriteLine("Enter the stock amount for the product");
+                StockQuantity = int.Parse(Console.ReadLine());
+
+                Console.WriteLine("Enter a price");
+                Price = decimal.Parse(Console.ReadLine());
+
+                int ProductId = DoProductsExist ? productId : 0; 
+
+                SQLiteCommand createRecords = new SQLiteCommand("INSERT INTO Products(ProductId, ProductName, Description, Price, StockQuantity) VALUES ('" + ProductId + ", '" + ProductName + "', '" + Description + "', '" + Price + "', '" + StockQuantity + "')", conn);
+                createRecords.ExecuteNonQuery();
+
+                Console.WriteLine(ProductName + " " + "added to database");
+                Console.WriteLine("Press enter to return to menu");
+                Console.ReadKey();
+            }
+            catch (Exception ex) when (ex is FormatException || ex is OverflowException)
+            {
+                Console.WriteLine("Invalid Choice. Please enter correct data type");
+            }
+        }
+        public static void CheckCustomerStockPanel()
+        {
+            Console.WriteLine("list of items will be queried and displayed here");
+        }
+        public static void DisplayCustomerAccountDetails()
+        {
+            Console.WriteLine("accounts details for customers will be displayed here");
+        }
+        public static void ViewAllCustomerOrders()
+        {
+
+        }
+        public static void ViewProductsInOrders()
+        {
+
+        }
+        public static void CheckBasket()
+        {
+            Console.WriteLine("list of items in the customer's basket will be added here");
+        }
+        public static void CheckCustomerOrders()
+        {
+            string CustomerQueryName;
+
+            Console.WriteLine("what is your name?");
+            CustomerQueryName = Console.ReadLine();
+        }
+        public static void ProductPage()
+        {
+            Console.Clear();
+            Console.WriteLine("Would you like to: ");
+            Console.WriteLine();
+            Console.WriteLine("1. View all products listed in the database,");
+            Console.WriteLine("2. Sort by product name in ascending order (a-z),");
+            Console.WriteLine("3. Sort by product price from highest costing to lowest.");
+
+        }
+        public static void OrderPage()
+        {
+            Console.Clear();
+            Console.WriteLine("customer's orders will appear here");
         }
         public static void StartMenuInformation()
         {
@@ -259,40 +429,6 @@ namespace NEA_Project
                 clearScreen++;
                 if (clearScreen >= 5) { StartMenuInformation(); }
             }
-        }
-        public static void CheckCustomerStockPanel()
-        {
-            Console.WriteLine("list of items will be queried and displayed here");
-        }
-        public static void DisplayCustomerAccountDetails()
-        {
-            Console.WriteLine("accounts details for customers will be displayed here");
-        }
-        public static void CheckBasket()
-        {
-            Console.WriteLine("list of items in the customer's basket will be added here");
-        }
-        public static void CheckCustomerOrders()
-        {
-            string CustomerQueryName;
-
-            Console.WriteLine("what is your name?");
-            CustomerQueryName = Console.ReadLine();
-        }
-        public static void ProductPage()
-        {
-            Console.Clear();
-            Console.WriteLine("Would you like to: ");
-            Console.WriteLine();
-            Console.WriteLine("1. View all products listed in the database,");
-            Console.WriteLine("2. Sort by product name in ascending order (a-z),");
-            Console.WriteLine("3. Sort by product price from highest costing to lowest.");
-
-        }
-        public static void OrderPage()
-        {
-            Console.Clear();
-            Console.WriteLine("customer's orders will appear here");
         }
         public static void MainMenu()
         {
