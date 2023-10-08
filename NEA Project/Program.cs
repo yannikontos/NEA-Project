@@ -184,7 +184,7 @@ namespace NEA_Project
                 {
                     AdminInitialChoice = int.Parse(Console.ReadLine());
 
-                    if (AdminInitialChoice >= 1 && AdminInitialChoice <= 3)
+                    if (AdminInitialChoice >= 1 && AdminInitialChoice <= 5)
                     {
                         decision = true;
                     }
@@ -255,12 +255,13 @@ namespace NEA_Project
 
                     Console.ResetColor();
 
-                    Console.WriteLine("Would you like to add more products to the database? [Y/N]");
-
                     try
                     {
+                        Console.WriteLine("Would you like to add more products to the database? [Y/N]");
                         choice = Char.ToLower(char.Parse(Console.ReadLine()));
-                        if (choice != 'y' || choice != 'n') { Console.WriteLine("Invalid choice. Please enter either [Y/N]"); } else { decision = true; }
+
+                        if (choice != 'y' && choice != 'n') { decision = true; }
+                        else { Console.WriteLine("Invalid choice. Please enter either [Y/N]"); }
 
                         switch (choice)
                         {
@@ -274,11 +275,13 @@ namespace NEA_Project
                     }
                     catch (Exception ex) when (ex is FormatException || ex is OverflowException)
                     {
-                        Console.WriteLine("Invalid choice. Please enter either [Y/N].");
+                        Console.WriteLine("Invalid choice. Please enter either [Y/N]");
                     }
-                    AddRecordsToTables(DoProductsExist, productId);
                 }
+                clearScreen++;
+                if (clearScreen >= 5) { AdminPage(); }
             }
+
             else
             {
                 Console.WriteLine("There are no currently listed items in the 'Products' table, would you like to add some? [Y/N]");
@@ -293,7 +296,7 @@ namespace NEA_Project
 
                         if (choice != 'y' || choice != 'n') { Console.WriteLine("Invalid choice. Please enter either [Y/N]"); } else { decision = true; }
 
-                        switch (choice) 
+                        switch (choice)
                         {
                             case 'y':
                                 AddRecordsToTables(DoProductsExist, productId);
@@ -320,9 +323,13 @@ namespace NEA_Project
             string ProductName, Description;
             int StockQuantity;
             decimal Price;
+            productId++;
 
             try
             {
+                int ProductId = DoProductsExist ? productId : 0;
+                Console.WriteLine(ProductId);
+
                 Console.WriteLine("Enter your desired product name");
                 ProductName = Console.ReadLine();
 
@@ -335,18 +342,25 @@ namespace NEA_Project
                 Console.WriteLine("Enter a price");
                 Price = decimal.Parse(Console.ReadLine());
 
-                int ProductId = DoProductsExist ? productId : 0; 
+                using (SQLiteCommand createRecords = new SQLiteCommand("INSERT INTO Products (ProductId, ProductName, Description, Price, StockQuantity) VALUES (@ProductId, @ProductName, @Description, @Price, @StockQuantity)", conn))
+                {
+                    createRecords.Parameters.AddWithValue("@ProductId", ProductId);
+                    createRecords.Parameters.AddWithValue("@ProductName", ProductName);
+                    createRecords.Parameters.AddWithValue("@Description", Description);
+                    createRecords.Parameters.AddWithValue("@Price", Price);
+                    createRecords.Parameters.AddWithValue("@StockQuantity", StockQuantity);
 
-                SQLiteCommand createRecords = new SQLiteCommand("INSERT INTO Products(ProductId, ProductName, Description, Price, StockQuantity) VALUES ('" + ProductId + ", '" + ProductName + "', '" + Description + "', '" + Price + "', '" + StockQuantity + "')", conn);
-                createRecords.ExecuteNonQuery();
+                    createRecords.ExecuteNonQuery();
+                }
 
-                Console.WriteLine(ProductName + " " + "added to database");
-                Console.WriteLine("Press enter to return to menu");
+                Console.WriteLine(ProductName + " " + "added to the database");
+                Console.WriteLine("Press enter to return to the menu");
                 Console.ReadKey();
+                AdminPage();
             }
             catch (Exception ex) when (ex is FormatException || ex is OverflowException)
             {
-                Console.WriteLine("Invalid Choice. Please enter correct data type");
+                Console.WriteLine("Invalid Choice. Please enter correct data types");
             }
         }
         public static void CheckCustomerStockPanel()
@@ -355,15 +369,18 @@ namespace NEA_Project
         }
         public static void DisplayCustomerAccountDetails()
         {
-            Console.WriteLine("accounts details for customers will be displayed here");
+            Console.Clear();
+            Console.WriteLine("all listed customers will be displayed here");
         }
         public static void ViewAllCustomerOrders()
         {
-
+            Console.Clear();
+            Console.WriteLine("customer orders will be displayed here");
         }
         public static void ViewProductsInOrders()
         {
-
+            Console.Clear();
+            Console.WriteLine("Products used in orders will be displayed here");
         }
         public static void CheckBasket()
         {
