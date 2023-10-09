@@ -223,20 +223,78 @@ namespace NEA_Project
             bool decision = false;
             int clearScreen = 0;
 
+            Dictionary<string, object> columnValues = new Dictionary<string, object>();
+
+            Dictionary<string, Dictionary<string, Type>> tableColumnHeaders = new Dictionary<string, Dictionary<string, Type>>
+            {
+                {
+                    "Products", new Dictionary<string, Type>
+                    {
+                        { "ProductId", typeof(int) },
+                        { "ProductName", typeof(string) },
+                        { "Description", typeof(string) },
+                        { "Price", typeof(decimal) },
+                        { "StockQuantity", typeof(int) }
+                    }
+                },
+                {
+                    "Customers", new Dictionary<string, Type>
+                    {
+                        { "CustomerId", typeof(int) },
+                        { "FirstName", typeof(string) },
+                        { "LastName", typeof(string) },
+                        { "PhoneNumber", typeof(int) },
+                        { "EmailAddress", typeof(string) }
+                    }
+                },
+                {
+                    "Orders", new Dictionary<string, Type>
+                    {
+                        { "OrderId", typeof(int) },
+                        { "OrderDate", typeof(int) },
+                        { "Total", typeof(string) },
+                        { "CustomerId", typeof(int) }
+                    }
+                },
+                {
+                    "ProductsInOrders", new Dictionary<string, Type>
+                    {
+                        { "ProductInOrderId", typeof(int) },
+                        { "ProductId", typeof(int) },
+                        { "OrderId", typeof(int) },
+                        { "Quantity", typeof(int) }
+                    }
+                }
+            };
+
+
             Console.WriteLine($"These are the currently listed {tableName} in the database: \n");
+
 
             if (reader.HasRows)
             {
+                Dictionary<string, Type> headerMaps = tableColumnHeaders[tableName];
                 bool DoProductsExist = true;
                 int ProductId = 0;
 
                 while (reader.Read())
                 {
+                    foreach (var headers in headerMaps)
+                    {
+                        string recordHeader = headers.Key;
+                        Type recordType = headers.Value;
+
+                        Console.WriteLine(recordHeader);
+                        Console.WriteLine(recordType);
+                    }
+
+
                     ProductId = Convert.ToInt32(reader["ProductId"]);
                     string productName = reader["ProductName"].ToString();
                     string description = reader["Description"].ToString();
                     decimal price = Convert.ToDecimal(reader["Price"]);
                     int stockQuantity = Convert.ToInt32(reader["StockQuantity"]);
+
 
                     Console.WriteLine($" ProductId: {ProductId} \n ProductName: {productName} \n Description: {description}");
 
@@ -423,10 +481,6 @@ namespace NEA_Project
         }
         public static void StartMenuInformation()
         {
-            int ExitCommand;
-            bool decision = false;
-            int clearScreen = 0;
-
             Console.Clear();
             Console.WriteLine("Option 1 is used for testing out the customer's perspective of the business; which can be useful for " +
                 "checking products in stock, checking customer details, basket and orders.");
@@ -434,31 +488,9 @@ namespace NEA_Project
             Console.WriteLine("Option 2 is used for testing out the customer's perspective of the business; which can be useful for " +
                 "checking all products in the database, checking all customers and their details, checking all customer orders and " +
                 "finally, being able to add or remove products and customers.");
-            Console.WriteLine("\n press '1' when you are ready to exit.");
-
-            while (!decision)
-            {
-                try
-                {
-                    ExitCommand = int.Parse(Console.ReadLine());
-
-                    if (ExitCommand == 1)
-                    {
-                        decision = true;
-                        MainMenu();
-                    }
-                    else
-                    {
-                        Console.WriteLine("Enter '1' to exit");
-                    }
-                }
-                catch (Exception ex) when (ex is FormatException || ex is OverflowException)
-                {
-                    Console.WriteLine("Please submit the number '1' when ready to exit");
-                }
-                clearScreen++;
-                if (clearScreen >= 5) { StartMenuInformation(); }
-            }
+            Console.WriteLine("\n press any key when you are ready to exit.");
+            Console.ReadKey();
+            MainMenu();
         }
         public static void MainMenu()
         {
