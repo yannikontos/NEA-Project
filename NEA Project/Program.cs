@@ -7,31 +7,32 @@ using System.Data.SQLite;
 using System.Threading;
 using System.Security.Cryptography.X509Certificates;
 using System.ComponentModel;
+using System.Text.RegularExpressions;
 
 namespace NEA_Project
 {
     public class Products 
     {
         public int ProductId { get; set; }
-        public int StockQuantity { get; set; }
         public string ProductName { get; set; }
         public string Description { get; set; }
         public decimal Price { get; set; }
+        public int StockQuantity { get; set; }
     }
     public class Customers 
     {
         public int CustomerId { get; set; }
         public string FirstName { get; set; }
         public string LastName { get; set; }
-        public int PhoneNumber { get; set; }
+        public string PhoneNumber { get; set; }
         public string EmailAddress { get; set; }
     }   
     public class Orders
     {
-        public int CustomerId { get; set; }
         public int OrderId { get; set; }
-        public int OrderDate { get; set; }
-        public string Total { get; set; }
+        public string OrderDate { get; set; }
+        public decimal Total { get; set; }
+        public int CustomerId { get; set; }
     }   
     public class ProductsInOrders
     {
@@ -85,7 +86,7 @@ namespace NEA_Project
                         case 4:
                             Console.Clear();
                             Console.WriteLine("Goodbye! Exiting The Program Now...");
-                            Thread.Sleep(2500);
+                            Thread.Sleep(2000);
                             Environment.Exit(0);
                             break;
                     }
@@ -243,7 +244,7 @@ namespace NEA_Project
                         { "CustomerId", typeof(int) },
                         { "FirstName", typeof(string) },
                         { "LastName", typeof(string) },
-                        { "PhoneNumber", typeof(int) },
+                        { "PhoneNumber", typeof(string) },
                         { "EmailAddress", typeof(string) }
                     }
                 },
@@ -251,8 +252,8 @@ namespace NEA_Project
                     "Orders", new Dictionary<string, Type>
                     {
                         { "OrderId", typeof(int) },
-                        { "OrderDate", typeof(int) },
-                        { "Total", typeof(string) },
+                        { "OrderDate", typeof(string) },
+                        { "Total", typeof(decimal) },
                         { "CustomerId", typeof(int) }
                     }
                 },
@@ -266,7 +267,6 @@ namespace NEA_Project
                     }
                 }
             };
-
 
             Console.WriteLine($"These are the currently listed {tableName} in the database: \n");
 
@@ -284,32 +284,50 @@ namespace NEA_Project
                         string recordHeader = headers.Key;
                         Type recordType = headers.Value;
 
-                        Console.WriteLine(recordHeader);
-                        Console.WriteLine(recordType);
+                        if (recordType == typeof(int))
+                        {
+                            columnValues[recordHeader] = Convert.ToInt32(reader[recordHeader]);
+                        }
+                        else if (recordType == typeof(string))
+                        {
+                            columnValues[recordHeader] = reader[recordHeader].ToString();
+                        }
+                        else if (recordType == typeof(decimal))
+                        {
+                            columnValues[recordHeader] = Convert.ToDecimal(reader[recordHeader]);
+                        }
                     }
 
+                    foreach(var value in columnValues)
+                    {
+                        string outputText = Regex.Replace(value.ToString(), @"\[|\]", "").Replace(", ", ": ");
+                        if (outputText == "price") { Console.WriteLine("price found"); }
+                        Console.WriteLine(outputText);
 
-                    ProductId = Convert.ToInt32(reader["ProductId"]);
-                    string productName = reader["ProductName"].ToString();
-                    string description = reader["Description"].ToString();
-                    decimal price = Convert.ToDecimal(reader["Price"]);
-                    int stockQuantity = Convert.ToInt32(reader["StockQuantity"]);
 
+                        //ProductId = Convert.ToInt32(reader["ProductId"]);
+                        //string productName = reader["ProductName"].ToString();
+                        //string description = reader["Description"].ToString();
+                        //decimal price = Convert.ToDecimal(reader["Price"]);
+                        //int stockQuantity = Convert.ToInt32(reader["StockQuantity"]);
 
-                    Console.WriteLine($" ProductId: {ProductId} \n ProductName: {productName} \n Description: {description}");
+                        //Console.WriteLine($" ProductId: {ProductId} \n ProductName: {productName} \n Description: {description}");
 
-                    if (price > 50) { Console.ForegroundColor = ConsoleColor.Red;}
-                    else { Console.ForegroundColor = ConsoleColor.Green;}
+                        //if (price > 50) { Console.ForegroundColor = ConsoleColor.Red;}
+                        //else { Console.ForegroundColor = ConsoleColor.Green;}
 
-                    Console.WriteLine($" Price: £{price}");
+                        //Console.WriteLine($" Price: £{price}");
 
-                    if (stockQuantity < 10) { Console.ForegroundColor = ConsoleColor.Red; }
-                    else { Console.ForegroundColor = ConsoleColor.Green; }
-                    Console.WriteLine($" StockQuantity: {stockQuantity} \n");
+                        //if (stockQuantity < 10) { Console.ForegroundColor = ConsoleColor.Red; }
+                        //else { Console.ForegroundColor = ConsoleColor.Green; }
+                        //Console.WriteLine($" StockQuantity: {stockQuantity} \n");
 
-                    Console.ResetColor();
+                        //Console.ResetColor();
+                    }
+
                 }
 
+                Console.WriteLine();
                 Console.WriteLine("Would you like to: ");
                 Console.WriteLine($"1. Add more {tableName} records to the database");
                 Console.WriteLine($"2. Delete {tableName} records in the database");
