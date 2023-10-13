@@ -310,7 +310,7 @@ namespace NEA_Project
                         if (value.Key == "StockQuantity" && (int)value.Value >= 10) { outputText = $"StockQuantity: {value.Value}"; Console.ForegroundColor = ConsoleColor.Red; }
                         else if (value.Key == "stockQuantity" && (int)value.Value < 10) { outputText = $"StockQuantity: {value.Value}"; Console.ForegroundColor = ConsoleColor.Green; }
 
-                        if (value.Key == "ProductId" || value.Key == "OrderId" || value.Key == "CustomerId" || value.Key == "ProductInOrderId") { itemId += (int)value.Value; }
+                        if (value.Key == "ProductId" || value.Key == "OrderId" || value.Key == "CustomerId" || value.Key == "ProductInOrderId") { itemId = (int)value.Value; }
 
                         // value gives out the [record header name, actual value of the header i.e. ProductId: 0 | ProductName: shirt]
                         Console.WriteLine(outputText);
@@ -431,41 +431,23 @@ namespace NEA_Project
 
                         if (value == "ProductId" || value == "OrderId" || value == "CustomerId" || value == "ProductInOrderId") { Console.WriteLine($"{value}: {itemId}"); ; parameters.Add(value, itemId); }
                         else { Console.WriteLine($"Enter your desired {output}:"); parameters.Add(value, Console.ReadLine());  }
-                        
-
-                        // how to iterate onto the next item in the dictionary i.e if the input is asking for productId, then skip to ProductName as we already have the id stored in itemId
-
                     }
 
-                    foreach (var param in parameters)
+                    using (SQLiteCommand createRecords = new SQLiteCommand(conn))
                     {
-                        Console.WriteLine(param);
+                        string insertCommand = $"INSERT INTO {tableName} ({string.Join(", ", parameters.Keys)}) VALUES ({string.Join(", ", parameters.Keys.Select(key => "@" + key))})";
+                        createRecords.CommandText = insertCommand;
+                        // command would like a little like: (ProductId, ProductName, Description, Price, StockQuantity) VALUES (@ProductId, @ProductName, @Description, @Price, @StockQuantity)
 
-                        //Console.WriteLine("Enter your desired product name");
-                        //ProductName = Console.ReadLine();
-
-                        //Console.WriteLine("Enter your description for your product");
-                        //Description = Console.ReadLine();
-
-                        //Console.WriteLine("Enter the stock amount for the product");
-                        //StockQuantity = int.Parse(Console.ReadLine());
-
-                        //Console.WriteLine("Enter a price");
-                        //Price = decimal.Parse(Console.ReadLine());
-
-                        using (SQLiteCommand createRecords = new SQLiteCommand($"INSERT INTO {tableName} () VALUES (@ProductId, @ProductName, @Description, @Price, @StockQuantity)", conn))
+                        foreach (var param in parameters)
                         {
-                            //createRecords.Parameters.AddWithValue($"@{param}", ProductId);
-                            //createRecords.Parameters.AddWithValue("@ProductName", ProductName);
-                            //createRecords.Parameters.AddWithValue("@Description", Description);
-                            //createRecords.Parameters.AddWithValue("@Price", Price);
-                            //createRecords.Parameters.AddWithValue("@StockQuantity", StockQuantity);
-
-                            createRecords.ExecuteNonQuery();
+                            createRecords.Parameters.AddWithValue("@" + param.Key, param.Value);
                         }
+                        createRecords.ExecuteNonQuery();
                     }
 
-                    //Console.WriteLine(ProductName + " " + "added to the database");
+                    Console.WriteLine();
+                    Console.WriteLine("Item successfully added to the database");
                     Console.WriteLine("Press any key to return to the menu");
                     Console.ReadKey();
                     decision = true;
