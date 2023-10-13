@@ -418,6 +418,7 @@ namespace NEA_Project
             Dictionary<string, object> parameters = new Dictionary<string, object>();
             string output;
 
+
             while (!decision)
             {
                 try
@@ -432,6 +433,7 @@ namespace NEA_Project
                         if (value == "ProductId" || value == "OrderId" || value == "CustomerId" || value == "ProductInOrderId") { Console.WriteLine($"{value}: {itemId}"); ; parameters.Add(value, itemId); }
                         else { Console.WriteLine($"Enter your desired {output}:"); parameters.Add(value, Console.ReadLine());  }
                     }
+                    // for some reason this foreach loop isnt being read when trying to input a new record into the db, and thus its values cannot be used as parameters through the INSERT Query
 
                     using (SQLiteCommand createRecords = new SQLiteCommand(conn))
                     {
