@@ -11,7 +11,7 @@ using System.Text.RegularExpressions;
 
 namespace NEA_Project
 {
-    public class Products 
+    public class Products
     {
         public int ProductId { get; set; }
         public string ProductName { get; set; }
@@ -19,21 +19,21 @@ namespace NEA_Project
         public decimal Price { get; set; }
         public int StockQuantity { get; set; }
     }
-    public class Customers 
+    public class Customers
     {
         public int CustomerId { get; set; }
         public string FirstName { get; set; }
         public string LastName { get; set; }
         public string PhoneNumber { get; set; }
         public string EmailAddress { get; set; }
-    }   
+    }
     public class Orders
     {
         public int OrderId { get; set; }
         public string OrderDate { get; set; }
         public decimal Total { get; set; }
         public int CustomerId { get; set; }
-    }   
+    }
     public class ProductsInOrders
     {
         public int ProductInOrderId { get; set; }
@@ -50,7 +50,7 @@ namespace NEA_Project
         {
             conn.Open();
             MainMenu();
-            
+
 
             conn.Close();
 
@@ -91,7 +91,7 @@ namespace NEA_Project
                             break;
                     }
                 }
-                catch (Exception ex) when (ex is FormatException || ex is OverflowException) 
+                catch (Exception ex) when (ex is FormatException || ex is OverflowException)
                 {
                     Console.WriteLine("Invalid choice. Please enter integers in the range 1-4.");
                 }
@@ -190,11 +190,11 @@ namespace NEA_Project
                         case 2:
                             CheckAdminStockPanel("Customers");
                             decision = true;
-                            break;                 
+                            break;
                         case 3:
                             CheckAdminStockPanel("Orders");
                             decision = true;
-                            break;                 
+                            break;
                         case 4:
                             CheckAdminStockPanel("ProductsInOrders");
                             decision = true;
@@ -216,13 +216,14 @@ namespace NEA_Project
         public static void CheckAdminStockPanel(string tableName)
         {
             // this function is used to check to see if there are any products in stock, if so then will ask the user if they want to filter through the table 
-         
+
             Console.Clear();
             SQLiteCommand sqlSelect = new SQLiteCommand($"SELECT * FROM {tableName}", conn);
-            SQLiteDataReader reader; 
+            SQLiteDataReader reader;
             reader = sqlSelect.ExecuteReader();
             bool decision = false;
             int clearScreen = 0;
+            int itemId = 0;
 
             Dictionary<string, object> columnValues = new Dictionary<string, object>();
 
@@ -274,8 +275,8 @@ namespace NEA_Project
             if (reader.HasRows)
             {
                 Dictionary<string, Type> headerMaps = tableColumnHeaders[tableName];
-                bool DoProductsExist = true;
-                int ProductId = 0;
+                bool DoRecordItemsExist = true;
+                string outputText = "";
 
                 while (reader.Read())
                 {
@@ -296,35 +297,27 @@ namespace NEA_Project
                         {
                             columnValues[recordHeader] = Convert.ToDecimal(reader[recordHeader]);
                         }
+                        // headers gives out the [record header name i.e. ProductId, ProductName and the data type i.e. string , int]
                     }
 
-                    foreach(var value in columnValues)
+                    foreach (var value in columnValues)
                     {
-                        string outputText = Regex.Replace(value.ToString(), @"\[|\]", "").Replace(", ", ": ");
-                        if (outputText == "price") { Console.WriteLine("price found"); }
+                        outputText = Regex.Replace(value.ToString(), @"\[|\]", "").Replace(", ", ": ");
+
+                        if (value.Key == "Price" && (decimal)value.Value >= 50) { outputText = $"Price: £{value.Value}"; Console.ForegroundColor = ConsoleColor.Red; }
+                        else if (value.Key == "Price" && (decimal)value.Value < 50) { outputText = $"Price: £{value.Value}"; Console.ForegroundColor = ConsoleColor.Green; }
+                       
+                        if (value.Key == "StockQuantity" && (int)value.Value >= 10) { outputText = $"StockQuantity: {value.Value}"; Console.ForegroundColor = ConsoleColor.Red; }
+                        else if (value.Key == "stockQuantity" && (int)value.Value < 10) { outputText = $"StockQuantity: {value.Value}"; Console.ForegroundColor = ConsoleColor.Green; }
+
+                        if (value.Key == "ProductId" || value.Key == "OrderId" || value.Key == "CustomerId" || value.Key == "ProductInOrderId") { itemId += (int)value.Value; }
+
+                        // value gives out the [record header name, actual value of the header i.e. ProductId: 0 | ProductName: shirt]
                         Console.WriteLine(outputText);
-
-
-                        //ProductId = Convert.ToInt32(reader["ProductId"]);
-                        //string productName = reader["ProductName"].ToString();
-                        //string description = reader["Description"].ToString();
-                        //decimal price = Convert.ToDecimal(reader["Price"]);
-                        //int stockQuantity = Convert.ToInt32(reader["StockQuantity"]);
-
-                        //Console.WriteLine($" ProductId: {ProductId} \n ProductName: {productName} \n Description: {description}");
-
-                        //if (price > 50) { Console.ForegroundColor = ConsoleColor.Red;}
-                        //else { Console.ForegroundColor = ConsoleColor.Green;}
-
-                        //Console.WriteLine($" Price: £{price}");
-
-                        //if (stockQuantity < 10) { Console.ForegroundColor = ConsoleColor.Red; }
-                        //else { Console.ForegroundColor = ConsoleColor.Green; }
-                        //Console.WriteLine($" StockQuantity: {stockQuantity} \n");
-
-                        //Console.ResetColor();
+                        Console.ResetColor();
                     }
 
+                    if (headerMaps.Count == columnValues.Count) { Console.WriteLine(); }
                 }
 
                 Console.WriteLine();
@@ -349,7 +342,7 @@ namespace NEA_Project
                         switch (choice)
                         {
                             case 1:
-                                AddRecordsToTables(DoProductsExist, ProductId, tableName);
+                                AddRecordsToTables(DoRecordItemsExist, tableName, itemId, columnValues);
                                 decision = true;
                                 break;
                             case 2:
@@ -359,15 +352,15 @@ namespace NEA_Project
                             case 3:
                                 FilterItems("StockQuantity");
                                 decision = true;
-                                break;                  
+                                break;
                             case 4:
                                 FilterItems("ProductName");
                                 decision = true;
-                                break;                  
+                                break;
                             case 5:
                                 FilterItems("Price");
                                 decision = true;
-                                break;                  
+                                break;
                             case 6:
                                 AdminPage();
                                 decision = true;
@@ -386,8 +379,7 @@ namespace NEA_Project
             else
             {
                 Console.WriteLine($"There are no currently listed items in the '{tableName}' table, would you like to add some? [Y/N]");
-                int ProductId = 0;
-                bool DoProductsExist = false;
+                bool DoRecordItemsExist = false;
                 char choice;
 
                 while (!decision)
@@ -400,7 +392,7 @@ namespace NEA_Project
                         switch (choice)
                         {
                             case 'y':
-                                AddRecordsToTables(DoProductsExist, ProductId, tableName);
+                                AddRecordsToTables(DoRecordItemsExist, tableName, itemId, columnValues);
                                 decision = true;
                                 break;
                             case 'n':
@@ -419,45 +411,61 @@ namespace NEA_Project
                 }
             }
         }
-        public static void AddRecordsToTables(bool DoProductsExist, int productId, string tableName)
+        public static void AddRecordsToTables(bool DoRecordItemsExist, string tableName, int itemId, Dictionary<string, object> columnValues)
         {
-            bool decision = false;
-            string ProductName, Description;
-            int StockQuantity;
-            decimal Price;
-            productId++;
             Console.Clear();
+            bool decision = false;
+            Dictionary<string, object> parameters = new Dictionary<string, object>();
+            string output;
 
             while (!decision)
             {
                 try
                 {
-                    int ProductId = DoProductsExist ? productId : 0;
+                    // if products do not exist, item id will be 0 for a new record entry into the db, otherwise will increment for a new item
+                    itemId = DoRecordItemsExist ? itemId + 1 : itemId;
 
-                    Console.WriteLine("Enter your desired product name");
-                    ProductName = Console.ReadLine();
-
-                    Console.WriteLine("Enter your description for your product");
-                    Description = Console.ReadLine();
-
-                    Console.WriteLine("Enter the stock amount for the product");
-                    StockQuantity = int.Parse(Console.ReadLine());
-
-                    Console.WriteLine("Enter a price");
-                    Price = decimal.Parse(Console.ReadLine());
-
-                    using (SQLiteCommand createRecords = new SQLiteCommand("INSERT INTO Products (ProductId, ProductName, Description, Price, StockQuantity) VALUES (@ProductId, @ProductName, @Description, @Price, @StockQuantity)", conn))
+                    foreach (var value in columnValues.Keys)
                     {
-                        createRecords.Parameters.AddWithValue("@ProductId", ProductId);
-                        createRecords.Parameters.AddWithValue("@ProductName", ProductName);
-                        createRecords.Parameters.AddWithValue("@Description", Description);
-                        createRecords.Parameters.AddWithValue("@Price", Price);
-                        createRecords.Parameters.AddWithValue("@StockQuantity", StockQuantity);
+                        output = value.ToString();
 
-                        createRecords.ExecuteNonQuery();
+                        if (value == "ProductId" || value == "OrderId" || value == "CustomerId" || value == "ProductInOrderId") { Console.WriteLine($"{value}: {itemId}"); ; parameters.Add(value, itemId); }
+                        else { Console.WriteLine($"Enter your desired {output}:"); parameters.Add(value, Console.ReadLine());  }
+                        
+
+                        // how to iterate onto the next item in the dictionary i.e if the input is asking for productId, then skip to ProductName as we already have the id stored in itemId
+
                     }
 
-                    Console.WriteLine(ProductName + " " + "added to the database");
+                    foreach (var param in parameters)
+                    {
+                        Console.WriteLine(param);
+
+                        //Console.WriteLine("Enter your desired product name");
+                        //ProductName = Console.ReadLine();
+
+                        //Console.WriteLine("Enter your description for your product");
+                        //Description = Console.ReadLine();
+
+                        //Console.WriteLine("Enter the stock amount for the product");
+                        //StockQuantity = int.Parse(Console.ReadLine());
+
+                        //Console.WriteLine("Enter a price");
+                        //Price = decimal.Parse(Console.ReadLine());
+
+                        using (SQLiteCommand createRecords = new SQLiteCommand($"INSERT INTO {tableName} () VALUES (@ProductId, @ProductName, @Description, @Price, @StockQuantity)", conn))
+                        {
+                            //createRecords.Parameters.AddWithValue($"@{param}", ProductId);
+                            //createRecords.Parameters.AddWithValue("@ProductName", ProductName);
+                            //createRecords.Parameters.AddWithValue("@Description", Description);
+                            //createRecords.Parameters.AddWithValue("@Price", Price);
+                            //createRecords.Parameters.AddWithValue("@StockQuantity", StockQuantity);
+
+                            createRecords.ExecuteNonQuery();
+                        }
+                    }
+
+                    //Console.WriteLine(ProductName + " " + "added to the database");
                     Console.WriteLine("Press any key to return to the menu");
                     Console.ReadKey();
                     decision = true;
@@ -524,3 +532,4 @@ namespace NEA_Project
         }
     }
 }
+
