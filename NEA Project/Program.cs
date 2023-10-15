@@ -297,6 +297,7 @@ namespace NEA_Project
                         {
                             columnValues[recordHeader] = Convert.ToDecimal(reader[recordHeader]);
                         }
+                        // reader[recordHeader] is the value, i.e. 0, shirt, nice looking shirt, £20.50, 20
                         // headers gives out the [record header name i.e. ProductId, ProductName and the data type i.e. string , int]
                     }
 
@@ -306,7 +307,7 @@ namespace NEA_Project
 
                         if (value.Key == "Price" && (decimal)value.Value >= 50) { outputText = $"Price: £{value.Value}"; Console.ForegroundColor = ConsoleColor.Red; }
                         else if (value.Key == "Price" && (decimal)value.Value < 50) { outputText = $"Price: £{value.Value}"; Console.ForegroundColor = ConsoleColor.Green; }
-                       
+
                         if (value.Key == "StockQuantity" && (int)value.Value >= 10) { outputText = $"StockQuantity: {value.Value}"; Console.ForegroundColor = ConsoleColor.Red; }
                         else if (value.Key == "stockQuantity" && (int)value.Value < 10) { outputText = $"StockQuantity: {value.Value}"; Console.ForegroundColor = ConsoleColor.Green; }
 
@@ -418,22 +419,75 @@ namespace NEA_Project
             Dictionary<string, object> parameters = new Dictionary<string, object>();
             string output;
 
+            itemId = DoRecordItemsExist ? itemId + 1 : itemId;
 
             while (!decision)
             {
                 try
                 {
-                    // if products do not exist, item id will be 0 for a new record entry into the db, otherwise will increment for a new item
-                    itemId = DoRecordItemsExist ? itemId + 1 : itemId;
 
-                    foreach (var value in columnValues.Keys)
+                    foreach (var value in columnValues)
                     {
-                        output = value.ToString();
+                        output = value.Key.ToString();
+                        Type typeCheck = value.Value.GetType();
 
-                        if (value == "ProductId" || value == "OrderId" || value == "CustomerId" || value == "ProductInOrderId") { Console.WriteLine($"{value}: {itemId}"); ; parameters.Add(value, itemId); }
-                        else { Console.WriteLine($"Enter your desired {output}:"); parameters.Add(value, Console.ReadLine());  }
+                        if (output == "ProductId" || output == "OrderId" || output == "CustomerId" || output == "ProductInOrderId")  { Console.WriteLine($"{output}: {itemId}"); parameters.Add(output, itemId); }
+                        else
+                        {
+                            Console.WriteLine($"Enter your desired {output}:");
+                            string input = Console.ReadLine();
+                            bool containsInt = input.Any(char.IsDigit);
+
+                            // a string input type cannot be converted into an int, but if it can and is valid, then tell the user to re enter information
+                            // if a user inputs a string, and the string can convert into an int, then ask the user to reinput the number
+                            // detects ints as 2s, 2, will return true
+
+                            //checks if the input contains an int when the column header is a string, throws an error if so
+                            if (containsInt && value.Value.GetType() == typeof(string)) { throw new FormatException(); }
+                            //else { parameters[value.Key] = input; };
+
+
+                            // check if a column header is an int and if the user input is an int, if so add to the params dict, else throw exception
+                            //if (input && value.Value.GetType() == typeof(int)) { throw new FormatException(); }
+                            //else { throw new FormatException(); };
+
+                            // check if a column header is an decimal and if the user input is a decimal, if so add to the params dict, else throw exception
+                            //if (containsInt && value.Value.GetType() == typeof(decimal)) { throw new FormatException(); }
+                            //else { throw new FormatException(); };
+
+
+
+
+
+                            //if (input.GetType() == typeof(int) && value.Key.GetType() != typeof(int))
+                            //{
+                            //    throw new Exception();
+                            //}
+                            //else { Console.WriteLine("hello"); parameters[value.Key] = Convert.ToInt32(input); }
+
+                            //if (input.GetType() == typeof(int))
+                            //{
+                            //    parameters[value.Key] = Convert.ToInt32(input);
+                            //}
+                            //else if (typeCheck == typeof(string))
+                            //{
+                            //    parameters[value.Key] = input.ToString();
+                            //}
+                            //else if (typeCheck == typeof(decimal))
+                            //{
+                            //    parameters[value.Key] = Convert.ToDecimal(input);
+                            //}
+                        }
                     }
+
+                    foreach (var param in parameters)
+                    {
+                        Console.WriteLine("Key: " + param.Key.GetType());
+                        Console.WriteLine("Value: " + param.Value.GetType());
+                    }
+
                     // for some reason this foreach loop isnt being read when trying to input a new record into the db, and thus its values cannot be used as parameters through the INSERT Query
+                    // input sanitisation
 
                     using (SQLiteCommand createRecords = new SQLiteCommand(conn))
                     {
@@ -459,6 +513,7 @@ namespace NEA_Project
                 {
                     Console.Clear();
                     Console.WriteLine("Invalid Choice. Please enter correct data types");
+                    parameters.Clear();
                 }
             }
         }
@@ -516,4 +571,5 @@ namespace NEA_Project
         }
     }
 }
+
 
