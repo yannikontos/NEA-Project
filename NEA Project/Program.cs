@@ -215,8 +215,6 @@ namespace NEA_Project
         }
         public static void CheckAdminStockPanel(string tableName)
         {
-            // this function is used to check to see if there are any products in stock, if so then will ask the user if they want to filter through the table 
-
             Console.Clear();
             SQLiteCommand sqlSelect = new SQLiteCommand($"SELECT * FROM {tableName}", conn);
             SQLiteDataReader reader;
@@ -270,11 +268,11 @@ namespace NEA_Project
             };
 
             Console.WriteLine($"These are the currently listed {tableName} in the database: \n");
+            Dictionary<string, Type> headerMaps = tableColumnHeaders[tableName];
 
 
             if (reader.HasRows)
             {
-                Dictionary<string, Type> headerMaps = tableColumnHeaders[tableName];
                 bool DoRecordItemsExist = true;
                 string outputText = "";
 
@@ -343,7 +341,7 @@ namespace NEA_Project
                         switch (choice)
                         {
                             case 1:
-                                AddRecordsToTables(DoRecordItemsExist, tableName, itemId, columnValues);
+                                AddRecordsToTables(DoRecordItemsExist, tableName, itemId, columnValues, headerMaps);
                                 decision = true;
                                 break;
                             case 2:
@@ -390,10 +388,11 @@ namespace NEA_Project
                         choice = Char.ToLower(char.Parse(Console.ReadLine()));
                         if (choice != 'y' || choice != 'n') { Console.WriteLine("Invalid choice. Please enter either [Y/N]"); }
 
+
                         switch (choice)
                         {
                             case 'y':
-                                AddRecordsToTables(DoRecordItemsExist, tableName, itemId, columnValues);
+                                AddRecordsToTables(DoRecordItemsExist, tableName, itemId, columnValues, headerMaps);
                                 decision = true;
                                 break;
                             case 'n':
@@ -412,71 +411,77 @@ namespace NEA_Project
                 }
             }
         }
-        public static void AddRecordsToTables(bool DoRecordItemsExist, string tableName, int itemId, Dictionary<string, object> columnValues)
+        public static void AddRecordsToTables(bool DoRecordItemsExist, string tableName, int itemId, Dictionary<string, object> columnValues, Dictionary<string, Type> headerMaps)
         {
             Console.Clear();
             bool decision = false;
+            Dictionary<string, object> NoRecordItems = new Dictionary<string, object>();
             Dictionary<string, object> parameters = new Dictionary<string, object>();
             string output;
 
             itemId = DoRecordItemsExist ? itemId + 1 : itemId;
 
+            // add temp info into columnValues
+            if (!DoRecordItemsExist)
+            {
+                foreach(var header in headerMaps)
+                {
+                    Type typeCheck = header.Value;
+
+                    if (typeCheck == typeof(int) || typeCheck == typeof(decimal)) { columnValues.Add(header.Key, 0); }
+                    if (typeCheck == typeof(string)) { columnValues.Add(header.Key, ""); }
+                }
+            }
+
             while (!decision)
             {
                 try
                 {
-
                     foreach (var value in columnValues)
                     {
                         output = value.Key.ToString();
                         Type typeCheck = value.Value.GetType();
 
-                        if (output == "ProductId" || output == "OrderId" || output == "CustomerId" || output == "ProductInOrderId")  { Console.WriteLine($"{output}: {itemId}"); parameters.Add(output, itemId); }
+                        if (output == "ProductId" || output == "OrderId" || output == "CustomerId" || output == "ProductInOrderId") { Console.WriteLine($"{output}: {itemId}"); parameters.Add(output, itemId); }
+                        else if (output == "OrderDate")
+                        {
+                            Console.WriteLine("enter your desired date: ");
+                            DateTime date = DateTime.Parse(Console.ReadLine());
+                            parameters.Add(output, date);
+                        }
+                        else if (output == "PhoneNumber")
+                        {
+                            Console.WriteLine("enter your desired PhoneNumber: ");
+                            string input = Console.ReadLine();
+                            parameters.Add(output, input);
+                            //fix this input sanitisation next
+                        }
                         else
                         {
                             Console.WriteLine($"Enter your desired {output}:");
                             string input = Console.ReadLine();
-                            bool containsInt = input.Any(char.IsDigit);
-
-                            // a string input type cannot be converted into an int, but if it can and is valid, then tell the user to re enter information
-                            // if a user inputs a string, and the string can convert into an int, then ask the user to reinput the number
-                            // detects ints as 2s, 2, will return true
-
-                            //checks if the input contains an int when the column header is a string, throws an error if so
-                            if (containsInt && value.Value.GetType() == typeof(string)) { throw new FormatException(); }
-                            //else { parameters[value.Key] = input; };
+                            bool containsAnyInt = input.Any(char.IsDigit);
+                            bool isStringInt = input.All(char.IsDigit);
 
 
-                            // check if a column header is an int and if the user input is an int, if so add to the params dict, else throw exception
-                            //if (input && value.Value.GetType() == typeof(int)) { throw new FormatException(); }
-                            //else { throw new FormatException(); };
+                            if (containsAnyInt && value.Value.GetType() == typeof(string) || input == "") { throw new FormatException(); }
 
-                            // check if a column header is an decimal and if the user input is a decimal, if so add to the params dict, else throw exception
-                            //if (containsInt && value.Value.GetType() == typeof(decimal)) { throw new FormatException(); }
-                            //else { throw new FormatException(); };
+                            if (isStringInt && value.Value.GetType() == typeof(int)) { parameters[value.Key] = Convert.ToInt32(input); }
+                            else if (!isStringInt && value.Value.GetType() == typeof(int)) { throw new FormatException(); }
 
 
-
-
-
-                            //if (input.GetType() == typeof(int) && value.Key.GetType() != typeof(int))
-                            //{
-                            //    throw new Exception();
-                            //}
-                            //else { Console.WriteLine("hello"); parameters[value.Key] = Convert.ToInt32(input); }
-
-                            //if (input.GetType() == typeof(int))
-                            //{
-                            //    parameters[value.Key] = Convert.ToInt32(input);
-                            //}
-                            //else if (typeCheck == typeof(string))
-                            //{
-                            //    parameters[value.Key] = input.ToString();
-                            //}
-                            //else if (typeCheck == typeof(decimal))
-                            //{
-                            //    parameters[value.Key] = Convert.ToDecimal(input);
-                            //}
+                            if (input.GetType() == typeof(int))
+                            {
+                                parameters[value.Key] = Convert.ToInt32(input);
+                            }
+                            else if (typeCheck == typeof(string))
+                            {
+                                parameters[value.Key] = input.ToString();
+                            }
+                            else if (typeCheck == typeof(decimal))
+                            {
+                                parameters[value.Key] = Convert.ToDecimal(input);
+                            }
                         }
                     }
 
@@ -486,14 +491,11 @@ namespace NEA_Project
                         Console.WriteLine("Value: " + param.Value.GetType());
                     }
 
-                    // for some reason this foreach loop isnt being read when trying to input a new record into the db, and thus its values cannot be used as parameters through the INSERT Query
-                    // input sanitisation
-
+                    // command would like a little like: (ProductId, ProductName, Description, Price, StockQuantity) VALUES (@ProductId, @ProductName, @Description, @Price, @StockQuantity)
                     using (SQLiteCommand createRecords = new SQLiteCommand(conn))
                     {
                         string insertCommand = $"INSERT INTO {tableName} ({string.Join(", ", parameters.Keys)}) VALUES ({string.Join(", ", parameters.Keys.Select(key => "@" + key))})";
                         createRecords.CommandText = insertCommand;
-                        // command would like a little like: (ProductId, ProductName, Description, Price, StockQuantity) VALUES (@ProductId, @ProductName, @Description, @Price, @StockQuantity)
 
                         foreach (var param in parameters)
                         {
@@ -571,5 +573,3 @@ namespace NEA_Project
         }
     }
 }
-
-
