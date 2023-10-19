@@ -8,6 +8,7 @@ using System.Threading;
 using System.Security.Cryptography.X509Certificates;
 using System.ComponentModel;
 using System.Text.RegularExpressions;
+using System.Security.Cryptography;
 
 namespace NEA_Project
 {
@@ -222,6 +223,7 @@ namespace NEA_Project
             bool decision = false;
             int clearScreen = 0;
             int itemId = 0;
+            string tablePrimaryKey = "";
 
             Dictionary<string, object> columnValues = new Dictionary<string, object>();
 
@@ -274,7 +276,8 @@ namespace NEA_Project
             if (reader.HasRows)
             {
                 bool DoRecordItemsExist = true;
-                string outputText = "";
+                string outputText;
+
 
                 while (reader.Read())
                 {
@@ -309,7 +312,7 @@ namespace NEA_Project
                         if (value.Key == "StockQuantity" && (int)value.Value >= 10) { outputText = $"StockQuantity: {value.Value}"; Console.ForegroundColor = ConsoleColor.Red; }
                         else if (value.Key == "stockQuantity" && (int)value.Value < 10) { outputText = $"StockQuantity: {value.Value}"; Console.ForegroundColor = ConsoleColor.Green; }
 
-                        if (value.Key == "ProductId" || value.Key == "OrderId" || value.Key == "CustomerId" || value.Key == "ProductInOrderId") { itemId = (int)value.Value; }
+                        if (value.Key == "ProductId" || value.Key == "OrderId" || value.Key == "CustomerId" || value.Key == "ProductInOrderId") { itemId = (int)value.Value; tablePrimaryKey = value.Key; }
 
                         // value gives out the [record header name, actual value of the header i.e. ProductId: 0 | ProductName: shirt]
                         Console.WriteLine(outputText);
@@ -321,11 +324,11 @@ namespace NEA_Project
 
                 Console.WriteLine();
                 Console.WriteLine("Would you like to: ");
-                Console.WriteLine($"1. Add more {tableName} records to the database");
-                Console.WriteLine($"2. Delete {tableName} records in the database");
-                Console.WriteLine($"3. Filter through {tableName} based on StockQuantity ascending");
-                Console.WriteLine($"4. Filter through {tableName} based on ProductName ascending");
-                Console.WriteLine($"5. Filter through {tableName} based on Price ascending");
+                Console.WriteLine($"1. Add more {tableName} records to the table");
+                Console.WriteLine($"2. Delete {tableName} records in the table");
+                Console.WriteLine($"3. Filter through {tableName} based on ...");
+                Console.WriteLine($"4. Filter through {tableName} based on ...");
+                Console.WriteLine($"5. Filter through {tableName} based on ...");
                 Console.WriteLine("6. Exit to menu");
 
                 while (!decision)
@@ -345,7 +348,7 @@ namespace NEA_Project
                                 decision = true;
                                 break;
                             case 2:
-                                DeleteRecordsFromTables();
+                                DeleteRecordsFromTables(tableName, itemId, tablePrimaryKey);
                                 decision = true;
                                 break;
                             case 3:
@@ -417,14 +420,13 @@ namespace NEA_Project
             bool decision = false;
             Dictionary<string, object> NoRecordItems = new Dictionary<string, object>();
             Dictionary<string, object> parameters = new Dictionary<string, object>();
-            string output;
 
             itemId = DoRecordItemsExist ? itemId + 1 : itemId;
 
             // add temp info into columnValues
             if (!DoRecordItemsExist)
             {
-                foreach(var header in headerMaps)
+                foreach (var header in headerMaps)
                 {
                     Type typeCheck = header.Value;
 
@@ -433,63 +435,13 @@ namespace NEA_Project
                 }
             }
 
+            // implement: regex for email address input, user names
+
             while (!decision)
             {
                 try
                 {
-                    foreach (var value in columnValues)
-                    {
-                        output = value.Key.ToString();
-                        Type typeCheck = value.Value.GetType();
-
-                        if (output == "ProductId" || output == "OrderId" || output == "CustomerId" || output == "ProductInOrderId") { Console.WriteLine($"{output}: {itemId}"); parameters.Add(output, itemId); }
-                        else if (output == "OrderDate")
-                        {
-                            Console.WriteLine("enter your desired date: ");
-                            DateTime date = DateTime.Parse(Console.ReadLine());
-                            parameters.Add(output, date);
-                        }
-                        else if (output == "PhoneNumber")
-                        {
-                            Console.WriteLine("enter your desired PhoneNumber: ");
-                            string input = Console.ReadLine();
-                            parameters.Add(output, input);
-                            //fix this input sanitisation next
-                        }
-                        else
-                        {
-                            Console.WriteLine($"Enter your desired {output}:");
-                            string input = Console.ReadLine();
-                            bool containsAnyInt = input.Any(char.IsDigit);
-                            bool isStringInt = input.All(char.IsDigit);
-
-
-                            if (containsAnyInt && value.Value.GetType() == typeof(string) || input == "") { throw new FormatException(); }
-
-                            if (isStringInt && value.Value.GetType() == typeof(int)) { parameters[value.Key] = Convert.ToInt32(input); }
-                            else if (!isStringInt && value.Value.GetType() == typeof(int)) { throw new FormatException(); }
-
-
-                            if (input.GetType() == typeof(int))
-                            {
-                                parameters[value.Key] = Convert.ToInt32(input);
-                            }
-                            else if (typeCheck == typeof(string))
-                            {
-                                parameters[value.Key] = input.ToString();
-                            }
-                            else if (typeCheck == typeof(decimal))
-                            {
-                                parameters[value.Key] = Convert.ToDecimal(input);
-                            }
-                        }
-                    }
-
-                    foreach (var param in parameters)
-                    {
-                        Console.WriteLine("Key: " + param.Key.GetType());
-                        Console.WriteLine("Value: " + param.Value.GetType());
-                    }
+                    AddValuesToQuery(columnValues, itemId, parameters);
 
                     // command would like a little like: (ProductId, ProductName, Description, Price, StockQuantity) VALUES (@ProductId, @ProductName, @Description, @Price, @StockQuantity)
                     using (SQLiteCommand createRecords = new SQLiteCommand(conn))
@@ -519,11 +471,113 @@ namespace NEA_Project
                 }
             }
         }
-        public static void FilterItems(string whichFilter)
+        public static Dictionary<string, object> AddValuesToQuery(Dictionary<string, object> columnValues, int itemId, Dictionary<string, object> parameters) 
         {
+            string output; 
+
+            foreach (var value in columnValues)
+            {
+                output = value.Key.ToString();
+                Type typeCheck = value.Value.GetType();
+
+                if (output == "ProductId" || output == "OrderId" || output == "CustomerId" || output == "ProductInOrderId") { Console.WriteLine($"{output}: {itemId}"); parameters.Add(output, itemId); }
+                else if (output == "OrderDate")
+                {
+                    Console.WriteLine("enter your desired date: ");
+                    DateTime date = DateTime.Parse(Console.ReadLine());
+                    parameters.Add(output, date);
+                }
+                else if (output == "PhoneNumber") { ValidatePhoneNumber(parameters, value); }
+                else if (output == "EmailAddress") { ValidateEmailAddress(parameters, value); }
+                else
+                {
+                    Console.WriteLine($"Enter your desired {output}:");
+                    string input = Console.ReadLine();
+                    bool containsAnyInt = input.Any(char.IsDigit);
+                    bool isStringInt = input.All(char.IsDigit);
+
+
+                    if (containsAnyInt && value.Value.GetType() == typeof(string) || input == "") { throw new FormatException(); }
+                    if (isStringInt && value.Value.GetType() == typeof(int)) { parameters.Add(output, input); }
+                    else if (!isStringInt && value.Value.GetType() == typeof(int)) { throw new FormatException(); }
+                    else if (decimal.TryParse(input, out decimal decimalValue) && value.Value.GetType() == typeof(decimal)) { parameters.Add(output, decimalValue); }
+
+
+                    if (input.GetType() == typeof(int))
+                    {
+                        parameters.Add(output, int.Parse(input));
+                    }
+                    else if (typeCheck == typeof(string))
+                    {
+                        parameters.Add(output, input.ToString());
+                    }
+                    else if (typeCheck == typeof(decimal))
+                    {
+                        parameters.Add(output, decimal.Parse(input));
+                    }
+
+                    //cannot add decimal num for a value like price, works for '2' but not '2.99'
+                }
+            }
+            return parameters;
+        }
+        public static string ValidateEmailAddress(Dictionary<string, object> parameters, KeyValuePair<string, object> value)
+        {
+            string userInput;
+            string pattern = @"^((([a-z]|\d|[!#\$%&'\*\+\-\/=\?\^_`{\|}~]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])+(\.([a-z]|\d|[!#\$%&'\*\+\-\/=\?\^_`{\|}~]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])+)*)|((\x22)((((\x20|\x09)*(\x0d\x0a))?(\x20|\x09)+)?(([\x01-\x08\x0b\x0c\x0e-\x1f\x7f]|\x21|[\x23-\x5b]|[\x5d-\x7e]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(\\([\x01-\x09\x0b\x0c\x0d-\x7f]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF]))))*(((\x20|\x09)*(\x0d\x0a))?(\x20|\x09)+)?(\x22)))@((([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.)+(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.?$";
+
+            Console.WriteLine("enter your desired EmailAddress");
+            userInput = Console.ReadLine();
+            parameters[value.Key] = Regex.IsMatch(userInput, pattern) ? userInput : throw new FormatException();
+            return userInput;
+        }
+        public static string ValidatePhoneNumber(Dictionary<string, object> parameters, KeyValuePair<string, object> value)
+        {
+            string userInput;
+            string phonePattern = @"\s*(?:\+?(\d{1,3}))?([-. (]*(\d{3})[-. )]*)?((\d{3})[-. ]*(\d{2,4})(?:[-.x ]*(\d+))?)\s*";
+
+            Console.WriteLine("enter your desired PhoneNumber: ");
+            userInput = Console.ReadLine();
+            parameters[value.Key] = Regex.IsMatch(userInput, phonePattern) ? userInput : throw new FormatException();
+            return userInput;
+        }
+        public static void DeleteRecordsFromTables(string tableName, int itemId, string tablePrimaryKey)
+        {
+            int userInput;
+            int clearScreen = 0;
+            bool decision = false;
+            Console.Clear();
+
+            while (!decision)
+            {
+                try
+                {
+                    Console.WriteLine("Enter the item index you want to delete");
+                    userInput = int.Parse(Console.ReadLine());
+
+                    if (userInput <= itemId)
+                    {
+                        SQLiteCommand sqlDelete = new SQLiteCommand($"DELETE FROM {tableName} WHERE {tablePrimaryKey} = {userInput}", conn);
+                        sqlDelete.ExecuteNonQuery();
+                        Console.WriteLine($"Item index {userInput} has been deleted from {tableName}, enter any key to continue");
+                        Console.ReadKey();
+
+                        CheckAdminStockPanel(tableName);
+                        decision = true;
+                    }
+                    else { throw new FormatException(); }
+
+                }
+                catch (Exception ex) when (ex is FormatException || ex is OverflowException)
+                {
+                    Console.WriteLine("Invalid choice, Please enter an integer next time.");
+                }
+                clearScreen++;
+                if (clearScreen >= 5) { DeleteRecordsFromTables(tableName, itemId, tablePrimaryKey); }
+            }
 
         }
-        public static void DeleteRecordsFromTables()
+        public static void FilterItems(string whichFilter)
         {
 
         }
@@ -573,3 +627,5 @@ namespace NEA_Project
         }
     }
 }
+
+
