@@ -111,10 +111,9 @@ namespace NEA_Project
             Console.WriteLine("Welcome to the customer's page");
             Console.WriteLine("would you like to: ");
             Console.WriteLine("1. See a list of available products in stock");
-            Console.WriteLine("2. See your account details");
-            Console.WriteLine("3. Check your basket");
-            Console.WriteLine("4. Check your orders");
-            Console.WriteLine("5. Exit to main menu");
+            Console.WriteLine("2. Check your basket");
+            Console.WriteLine("3. Check your orders");
+            Console.WriteLine("4. Exit to main menu");
 
             while (!decision)
             {
@@ -122,13 +121,13 @@ namespace NEA_Project
                 {
                     CustomerInitialChoice = int.Parse(Console.ReadLine());
 
-                    if (CustomerInitialChoice >= 1 && CustomerInitialChoice <= 5)
+                    if (CustomerInitialChoice >= 1 && CustomerInitialChoice <= 4)
                     {
                         decision = true;
                     }
                     else
                     {
-                        Console.WriteLine("Invalid choice. Please enter integers in the range 1-5.");
+                        Console.WriteLine("Invalid choice. Please enter integers in the range 1-4.");
                     }
 
                     switch (CustomerInitialChoice)
@@ -137,22 +136,19 @@ namespace NEA_Project
                             CheckCustomerStockPanel();
                             break;
                         case 2:
-                            DisplayCustomerAccountDetails();
-                            break;
-                        case 3:
                             CheckBasket();
                             break;
-                        case 4:
+                        case 3:
                             CheckCustomerOrders();
                             break;
-                        case 5:
+                        case 4:
                             MainMenu();
                             break;
                     }
                 }
                 catch (Exception ex) when (ex is FormatException || ex is OverflowException)
                 {
-                    Console.WriteLine("Invalid choice. Please enter integers in the range 1-5.");
+                    Console.WriteLine("Invalid choice. Please enter integers in the range 1-4.");
                 }
                 clearScreen++;
                 if (clearScreen >= 5) { CustomerPage(); }
@@ -430,8 +426,9 @@ namespace NEA_Project
                 {
                     Type typeCheck = header.Value;
 
-                    if (typeCheck == typeof(int) || typeCheck == typeof(decimal)) { columnValues.Add(header.Key, 0); }
-                    if (typeCheck == typeof(string)) { columnValues.Add(header.Key, ""); }
+                    if (typeCheck == typeof(int)) { columnValues.Add(header.Key, 0); }
+                    else if (typeCheck == typeof(decimal)) { columnValues.Add(header.Key, 0m); }
+                    else { columnValues.Add(header.Key, ""); }
                 }
             }
 
@@ -478,7 +475,6 @@ namespace NEA_Project
             foreach (var value in columnValues)
             {
                 output = value.Key.ToString();
-                Type typeCheck = value.Value.GetType();
 
                 if (output == "ProductId" || output == "OrderId" || output == "CustomerId" || output == "ProductInOrderId") { Console.WriteLine($"{output}: {itemId}"); parameters.Add(output, itemId); }
                 else if (output == "OrderDate")
@@ -493,30 +489,14 @@ namespace NEA_Project
                 {
                     Console.WriteLine($"Enter your desired {output}:");
                     string input = Console.ReadLine();
-                    bool containsAnyInt = input.Any(char.IsDigit);
-                    bool isStringInt = input.All(char.IsDigit);
+                    decimal validDecimal = 0;
+                    bool containsAnInt = input.Any(char.IsDigit);
+                    bool isInt = input.All(char.IsDigit);
+                    bool isDecimal = decimal.TryParse(input, out validDecimal);
+                    // for .Any method, 'a2' '2' returns true, 'a' returns false, whereas 'all' method returns false on everything but just ints, or is true on anything containing a char
 
-
-                    if (containsAnyInt && value.Value.GetType() == typeof(string) || input == "") { throw new FormatException(); }
-                    if (isStringInt && value.Value.GetType() == typeof(int)) { parameters.Add(output, input); }
-                    else if (!isStringInt && value.Value.GetType() == typeof(int)) { throw new FormatException(); }
-                    else if (decimal.TryParse(input, out decimal decimalValue) && value.Value.GetType() == typeof(decimal)) { parameters.Add(output, decimalValue); }
-
-
-                    if (input.GetType() == typeof(int))
-                    {
-                        parameters.Add(output, int.Parse(input));
-                    }
-                    else if (typeCheck == typeof(string))
-                    {
-                        parameters.Add(output, input.ToString());
-                    }
-                    else if (typeCheck == typeof(decimal))
-                    {
-                        parameters.Add(output, decimal.Parse(input));
-                    }
-
-                    //cannot add decimal num for a value like price, works for '2' but not '2.99'
+                    if (containsAnInt && value.Value.GetType() == typeof(string) || value.Value.GetType() == typeof(decimal) && !isDecimal || value.Value.GetType() == typeof(int) && !isInt || input == "") { throw new FormatException(); }
+                    else { parameters.Add(output, input); }
                 }
             }
             return parameters;
@@ -570,7 +550,7 @@ namespace NEA_Project
                 }
                 catch (Exception ex) when (ex is FormatException || ex is OverflowException)
                 {
-                    Console.WriteLine("Invalid choice, Please enter an integer next time.");
+                    Console.WriteLine("Invalid choice, Please enter a valid integer next time.");
                 }
                 clearScreen++;
                 if (clearScreen >= 5) { DeleteRecordsFromTables(tableName, itemId, tablePrimaryKey); }
@@ -584,10 +564,6 @@ namespace NEA_Project
         public static void CheckCustomerStockPanel()
         {
             Console.WriteLine("list of items will be queried and displayed here");
-        }
-        public static void DisplayCustomerAccountDetails()
-        {
-
         }
         public static void CheckBasket()
         {
@@ -627,5 +603,3 @@ namespace NEA_Project
         }
     }
 }
-
-
