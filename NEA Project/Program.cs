@@ -9,6 +9,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.ComponentModel;
 using System.Text.RegularExpressions;
 using System.Security.Cryptography;
+using System.Runtime.Remoting.Messaging;
 
 namespace NEA_Project
 {
@@ -323,8 +324,8 @@ namespace NEA_Project
                 Console.WriteLine("Would you like to: ");
                 Console.WriteLine($"1. Add more {tableName} records to the table");
                 Console.WriteLine($"2. Delete {tableName} records in the table");
-                if (tableName == "Orders") { Console.WriteLine($"3. Fetch customer order information based on provided OrderId"); }
-                Console.WriteLine($"4. Filter through {tableName} based on ...");
+                Console.WriteLine($"3. Fetch what a customer has ordered based on their OrderId"); 
+                Console.WriteLine($"4. Calculate the most expensive customer orders"); 
                 Console.WriteLine("5. Exit to menu");
 
                 while (!decision)
@@ -349,11 +350,10 @@ namespace NEA_Project
                                 break;
                             case 3:
                                 GetCustomerOrdersWithProducts(tableName);
-                                //fix this
                                 decision = true;
                                 break;
                             case 4:
-                                FilterItems("ProductName");
+                                CalculateMostExpensiveOrder();
                                 decision = true;
                                 break;
                             case 5:
@@ -405,7 +405,6 @@ namespace NEA_Project
                     clearScreen++;
                     if (clearScreen >= 5) { CheckAdminStockPanel(tableName); }
                 }
-                //dicts or hashtables?
             }
         }
         public static void AddRecordsToTables(bool DoRecordItemsExist, string tableName, int itemId, Dictionary<string, object> columnValues, Dictionary<string, Type> headerMaps)
@@ -458,7 +457,7 @@ namespace NEA_Project
                     Console.WriteLine("Press any key to return to the menu");
                     Console.ReadKey();
                     decision = true;
-                    AdminPage();
+                    CheckAdminStockPanel(tableName);
                 }
                 catch (Exception ex) when (ex is FormatException || ex is OverflowException)
                 {
@@ -491,7 +490,7 @@ namespace NEA_Project
 
                 Console.WriteLine($"The {outputText} table has no entries; in order to add entries to the {tableName} table you will need to input data into {outputText} \nPress any key to return to the menu");
                 Console.ReadKey();
-                AdminPage();
+                CheckAdminStockPanel(tableName);
             }
 
             if (tableName == "Orders")
@@ -526,9 +525,10 @@ namespace NEA_Project
                 else if (output == "PhoneNumber") { ValidatePhoneNumber(parameters, value); }
                 else if (output == "EmailAddress") { ValidateEmailAddress(parameters, value); }
                 else if (output == "Description") { ValidateDescription(parameters, value); }
-                else if (output == "CustomerId" && tableName == "Orders") { ValidateCustomerId(customerIds, parameters); }
-                else if (output == "ProductId" && tableName == "ProductsInOrders") { ValidateSecondaryKeys(productIds, orderIds, parameters, output); }
-                else if (output == "OrderId" && tableName == "ProductsInOrders") { ValidateSecondaryKeys(productIds, orderIds, parameters, output); }
+                else if (output == "CustomerId" && tableName == "Orders") { ValidateCustomerId(tableName, customerIds, parameters); }
+                else if (output == "ProductId" && tableName == "ProductsInOrders") { ValidateSecondaryKeys(tableName, productIds, orderIds, parameters, output); }
+                else if (output == "OrderId" && tableName == "ProductsInOrders") { ValidateSecondaryKeys(tableName, productIds, orderIds, parameters, output); }
+                else if (output == "Quantity" && tableName == "ProductsInOrders") { ValidateQuantity(parameters, output); }
                 else
                 {
                     Console.WriteLine($"Enter your desired {output}:");
@@ -576,24 +576,24 @@ namespace NEA_Project
 
             return userInput;
         }
-        public static Dictionary<string, object> ValidateCustomerId(List<int> customerIds, Dictionary<string, object> parameters)
+        public static Dictionary<string, object> ValidateCustomerId(string tableName, List<int> customerIds, Dictionary<string, object> parameters)
         {
             bool isAssigned = false;
             SQLiteCommand sqlOrders = new SQLiteCommand($"SELECT * FROM Orders", conn);
             SQLiteDataReader orderReader = sqlOrders.ExecuteReader();
-            List<int> checkOrderIds = new List<int>();
+            List<int> checkCustomerids = new List<int>();
 
             while (orderReader.Read())
             {
-                checkOrderIds.Add(Convert.ToInt32(orderReader["CustomerId"]));
+                checkCustomerids.Add(Convert.ToInt32(orderReader["CustomerId"]));
             }
 
-            if (customerIds.Count == checkOrderIds.Count) 
+            if (customerIds.Count == checkCustomerids.Count)
             {
                 Console.Clear();
                 Console.WriteLine("All the possible CustomerId's have been assigned already, thus you must add more customers into the database in order to have more orders \nPress any key to continue ");
                 Console.ReadKey();
-                AdminPage();
+                CheckAdminStockPanel(tableName);
             }
 
             while (!isAssigned)
@@ -601,7 +601,7 @@ namespace NEA_Project
                 Console.WriteLine("Assign a customerId to this order");
                 int userInputtedCustomerId = int.Parse(Console.ReadLine());
 
-                if (!customerIds.Contains(userInputtedCustomerId) || checkOrderIds.Contains(userInputtedCustomerId)) { Console.Clear(); Console.WriteLine("The number inputted is not an available CustomerId"); }
+                if (!customerIds.Contains(userInputtedCustomerId) || checkCustomerids.Contains(userInputtedCustomerId)) { Console.Clear(); Console.WriteLine("The number inputted is not an available CustomerId"); }
                 else
                 {
                     parameters.Add("CustomerId", userInputtedCustomerId);
@@ -611,31 +611,89 @@ namespace NEA_Project
 
             return parameters;
         }
-        public static Dictionary<string, object> ValidateSecondaryKeys(List<int> productIds, List<int> orderIds, Dictionary<string, object> parameters, string output)
+        public static Dictionary<string, object> ValidateSecondaryKeys(string tableName, List<int> productIds, List<int> orderIds, Dictionary<string, object> parameters, string output)
         {
             bool isAssigned = false;
+            SQLiteCommand sqlProductsInOrders = new SQLiteCommand($"SELECT * FROM ProductsInOrders", conn);
+            SQLiteDataReader productsInOrdersReader = sqlProductsInOrders.ExecuteReader();
+            List<int> checkProductIds = new List<int>();
+            List<int> checkOrderIds = new List<int>();
+
+
+            while (productsInOrdersReader.Read())
+            {
+                checkProductIds.Add(Convert.ToInt32(productsInOrdersReader["ProductId"]));
+                checkOrderIds.Add(Convert.ToInt32(productsInOrdersReader["OrderId"]));
+            }
+
+            if (orderIds.Count == checkOrderIds.Count || productIds.Count == checkProductIds.Count) 
+            {
+                Console.Clear();
+                Console.WriteLine("All the possible (ProductId's or OrderId's) have been assigned already, thus you must add more records into one or either tables into the database in order to have more records in ProductsInOrders \nPress any key to continue ");
+                Console.ReadKey();
+                CheckAdminStockPanel(tableName);
+            }
 
             while (!isAssigned && output == "ProductId")
             {
                 Console.WriteLine("Enter your desired ProductId");
-                int productId = int.Parse(Console.ReadLine());
-                parameters.Add("ProductId", productId);
+                int inputtedProductId = int.Parse(Console.ReadLine());
 
-                isAssigned = true;
+                if (!productIds.Contains(inputtedProductId)) { Console.Clear(); Console.WriteLine("The number inputted is not an available ProductId"); }
+                else { parameters.Add("ProductId", inputtedProductId); isAssigned = true; }
             }
 
             while (!isAssigned && output == "OrderId")
             {
-                Console.WriteLine("Enter your desired asd OrderId");
-                int orderId = int.Parse(Console.ReadLine());
-                parameters.Add("OrderId", orderId);
+                Console.WriteLine("Enter your desired OrderId");
+                int inputtedOrderId = int.Parse(Console.ReadLine());
 
-                isAssigned = true;
+                if (checkOrderIds.Contains(inputtedOrderId) || !orderIds.Contains(inputtedOrderId)) { Console.Clear(); Console.WriteLine("The number inputted is not an available OrderId"); }
+                else { parameters.Add("OrderId", inputtedOrderId); isAssigned = true; }
             }
 
             //for quantity: take the productId then get the stockQuantity, then ensure in ProductsInOrders that the user cannot select more than the current stockQuantity available
-            //ensure validity of productId and orderId. possibly make it less verbose
             return parameters;
+        }
+        public static int ValidateQuantity(Dictionary<string, object> parameters, string output)
+        {
+            bool isAssigned = false;
+            int inputtedQuantity = 0;
+            int getProductId = 0;
+            int availableQuantity = 0;
+
+            foreach (KeyValuePair<string, object> item in parameters)
+            {
+                if (item.Key == "ProductId") { getProductId = Convert.ToInt32(item.Value); }
+            }
+
+            SQLiteCommand sqlStockQuantity = new SQLiteCommand($"SELECT StockQuantity FROM Products WHERE ProductId = {getProductId}", conn);
+            SQLiteDataReader stockQuantity = sqlStockQuantity.ExecuteReader();
+
+            while (stockQuantity.Read())
+            {
+                availableQuantity = Convert.ToInt32(stockQuantity["stockQuantity"]);
+            }
+
+            while (!isAssigned && output == "Quantity")
+            {
+                Console.WriteLine("Enter your desired Quantity");
+                inputtedQuantity = int.Parse(Console.ReadLine());
+
+                if (inputtedQuantity <= availableQuantity && inputtedQuantity != 0)
+                {
+                    parameters.Add("Quantity", inputtedQuantity);
+                    SQLiteCommand updateStockAvailability = new SQLiteCommand($"UPDATE Products SET StockQuantity = {availableQuantity - inputtedQuantity} WHERE ProductId = {getProductId}", conn);
+                    updateStockAvailability.ExecuteNonQuery();
+                    isAssigned = true;
+                }
+                else
+                {
+                    Console.Clear();
+                    Console.WriteLine("That amount of stock is not available, check if the product is in stock if needed");
+                }
+            }
+            return inputtedQuantity;
         }
         public static void DeleteRecordsFromTables(string tableName, List<int> availableTableIds, string tablePrimaryKey)
         {
@@ -676,74 +734,92 @@ namespace NEA_Project
         public static void GetCustomerOrdersWithProducts(string tableName)
         {
             Console.Clear();
+            SQLiteCommand sqlOrders = new SQLiteCommand($"SELECT * FROM Orders", conn);
+            SQLiteDataReader orderReader = sqlOrders.ExecuteReader();
+            List<int> availableOrderIds = new List<int>();
             int inputId;
-            int clearScreen = 0;
             bool decision = false;
+
+            while (orderReader.Read())
+            {
+                availableOrderIds.Add(Convert.ToInt32(orderReader["OrderId"]));
+            }
 
             while (!decision)
             {
                 try
                 {
-                    Console.WriteLine("enter the index for the desired orderID");
+                    Console.WriteLine("enter an index for your desired OrderId");
                     inputId = int.Parse(Console.ReadLine());
 
-                    string sql = "SELECT Orders.OrderId, Orders.OrderDate, Products.ProductName, Products.Price, " +
-                                    "Customers.FirstName || ' ' || Customers.LastName AS CustomerFullName " +
-                                    "FROM ProductsInOrders " +
-                                    "INNER JOIN Products ON ProductsInOrders.ProductId = Products.ProductId " +
-                                    "INNER JOIN Orders ON ProductsInOrders.OrderId = Orders.OrderId " +
-                                    "INNER JOIN Customers ON Orders.CustomerId = Customers.CustomerId " +
-                                    "WHERE ProductsInOrders.OrderId = @OrderId";
-
-                    using (SQLiteCommand cmd = new SQLiteCommand(sql, conn))
+                    if (availableOrderIds.Contains(inputId))
                     {
-                        cmd.Parameters.AddWithValue("@OrderId", inputId);
-                        using (SQLiteDataReader reader = cmd.ExecuteReader())
+                        SQLiteCommand selectOrderDetails = new SQLiteCommand($@"SELECT ProductsInOrders.OrderId, Orders.OrderDate, Customers.FirstName,
+                        Customers.LastName, Products.ProductName, Products.Price, ProductsInOrders.Quantity
+                        FROM ProductsInOrders
+                        INNER JOIN Orders ON ProductsInOrders.OrderId = Orders.OrderId
+                        INNER JOIN Customers ON Orders.CustomerId = Customers.CustomerId
+                        INNER JOIN Products ON ProductsInOrders.ProductId = Products.ProductId
+                        WHERE ProductsInOrders.OrderId = {inputId}; ", conn);
+
+                        SQLiteDataReader orderDetails = selectOrderDetails.ExecuteReader();
+
+                        while (orderDetails.Read())
                         {
-                            while (reader.Read())
-                            {
-                                int orderId = reader.GetInt32(0);
-                                string orderDate = reader.GetString(1);
-                                string productName = reader.GetString(2);
-                                decimal price = reader.GetDecimal(3);
-                                string fullName = reader.GetString(4);
-                                Console.WriteLine($"Order ID: {orderId}, \nName: {fullName}, \nProduct Ordered: {productName}, \nPrice: {price:C}, \nDate: {orderDate}");
-                            }
+                            Console.Clear();
+                            int resultOrderId = orderDetails.GetInt32(0);
+                            DateTime orderDate = orderDetails.GetDateTime(1);
+                            string firstName = orderDetails.GetString(2);
+                            string lastName = orderDetails.GetString(3);
+                            string productName = orderDetails.GetString(4);
+                            decimal price = orderDetails.GetDecimal(5);
+                            int quantity = orderDetails.GetInt32(6);
+
+                            Console.WriteLine("Item found: \n");
+                            Console.WriteLine($"Order ID: {resultOrderId}, \nOrder Date: {orderDate}, \nCustomer Name: {firstName} {lastName}, \nProduct Ordered: {productName}, \nProduct Price: £{price}, \nQuantity: {quantity}, \nTotal: £{quantity * price}\n");
+                            Console.WriteLine("Press Any Key To Return");
+                            Console.ReadKey();
+                            CheckAdminStockPanel(tableName);
+                            decision = true;
                         }
                     }
-
-                    Console.WriteLine("\nitem found, press any key to return");
-                    Console.ReadKey();
-                    CheckAdminStockPanel(tableName);
+                    else { Console.Clear();  Console.WriteLine("Incorrect OrderId"); }
                 }
                 catch (Exception ex) when (ex is FormatException || ex is OverflowException)
                 {
                     Console.WriteLine("enter a valid integer index.");
                 }
-                clearScreen++;
-                if (clearScreen >= 5) { GetCustomerOrdersWithProducts(tableName); }
-
-                // fetch an orderId from Orders, then use that to find the ProductId from ProductsInOrders, then use that index to find the productName and price from Products table
             }
         }
-
-        //public static decimal CalculateTotalOrderPrice(int orderId)
-        //{
-        //    string sql = "SELECT SUM(Products.Price * ProductsInOrders.Quantity) " +
-        //                 "FROM ProductsInOrders " +
-        //                 "INNER JOIN Products ON ProductsInOrders.ProductId = Products.ProductId " +
-        //                 "WHERE ProductsInOrders.OrderId = @OrderId";
-
-        //    using (SQLiteCommand cmd = new SQLiteCommand(sql, conn))
-        //    {
-        //        cmd.Parameters.AddWithValue("@OrderId", orderId);
-        //        object result = cmd.ExecuteScalar();
-        //      return Convert.ToDecimal(result);
-        //    }
-        //}
-        public static void FilterItems(string whichFilter)
+        public static void CalculateMostExpensiveOrder()
         {
+            SQLiteCommand getProductOrderId = new SQLiteCommand("SELECT OrderId FROM ProductsInOrders", conn);
+            SQLiteDataReader productOrderReader = getProductOrderId.ExecuteReader();
+            List<int> productInOrderIds = new List<int>();
+            Console.Clear();
 
+            while (productOrderReader.Read()) { productInOrderIds.Add(Convert.ToInt32(productOrderReader["OrderId"])); }
+
+
+            SQLiteCommand fetchOrders = new SQLiteCommand($@"SELECT Customers.CustomerId, Customers.FirstName, Customers.LastName, SUM(Products.Price * ProductsInOrders.Quantity) AS total
+            FROM Customers
+            LEFT JOIN Orders ON Customers.CustomerId = Orders.CustomerId
+            LEFT JOIN ProductsInOrders ON Orders.OrderId = ProductsInOrders.OrderId
+            LEFT JOIN Products ON ProductsInOrders.ProductId = Products.ProductId
+            GROUP BY Customers.CustomerId, Customers.FirstName, Customers.LastName
+            ORDER BY total DESC LIMIT 3", conn);
+
+            SQLiteDataReader orderReader = fetchOrders.ExecuteReader();
+
+            while (orderReader.Read())
+            {
+                int customerId = orderReader.GetInt32(0);
+                string firstName = orderReader.GetString(1);
+                string lastName = orderReader.GetString(2);
+                decimal total = orderReader.GetDecimal(3);
+
+                Console.WriteLine($"The customer {customerId}: {firstName} {lastName} has a total spending of £{total}");
+            }
         }
         public static void CheckCustomerStockPanel()
         {
@@ -787,8 +863,5 @@ namespace NEA_Project
         }
     }
 }
-
-
-
 
 
