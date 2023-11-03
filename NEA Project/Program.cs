@@ -10,6 +10,7 @@ using System.ComponentModel;
 using System.Text.RegularExpressions;
 using System.Security.Cryptography;
 using System.Runtime.Remoting.Messaging;
+using System.Diagnostics.Eventing.Reader;
 
 namespace NEA_Project
 {
@@ -215,13 +216,14 @@ namespace NEA_Project
         {
             Console.Clear();
             SQLiteCommand sqlSelect = new SQLiteCommand($"SELECT * FROM {tableName}", conn);
-            SQLiteDataReader reader;
-            reader = sqlSelect.ExecuteReader();
+            SQLiteDataReader reader = sqlSelect.ExecuteReader();
+
             bool decision = false;
             int clearScreen = 0;
             int itemId = 0;
             string tablePrimaryKey = "";
             List<int> availableTableIds = new List<int>();
+            bool hasRows = false;
 
             Dictionary<string, object> columnValues = new Dictionary<string, object>();
 
@@ -305,8 +307,7 @@ namespace NEA_Project
                         if (value.Key == "Price" && (decimal)value.Value >= 50) { outputText = $"Price: £{value.Value}"; Console.ForegroundColor = ConsoleColor.Red; }
                         else if (value.Key == "Price" && (decimal)value.Value < 50) { outputText = $"Price: £{value.Value}"; Console.ForegroundColor = ConsoleColor.Green; }
 
-                        if (value.Key == "StockQuantity" && (int)value.Value >= 10) { outputText = $"StockQuantity: {value.Value}"; Console.ForegroundColor = ConsoleColor.Red; }
-                        else if (value.Key == "stockQuantity" && (int)value.Value < 10) { outputText = $"StockQuantity: {value.Value}"; Console.ForegroundColor = ConsoleColor.Green; }
+                        if (value.Key == "StockQuantity" && (int)value.Value <= 10) { outputText = $"StockQuantity: {value.Value}"; Console.ForegroundColor = ConsoleColor.Red; }
 
                         if (value.Key == "Total") { outputText = $"Total: £{value.Value}"; }
 
@@ -324,8 +325,8 @@ namespace NEA_Project
                 Console.WriteLine("Would you like to: ");
                 Console.WriteLine($"1. Add more {tableName} records to the table");
                 Console.WriteLine($"2. Delete {tableName} records in the table");
-                Console.WriteLine($"3. Fetch what a customer has ordered based on their OrderId"); 
-                Console.WriteLine($"4. Calculate the most expensive customer orders"); 
+                Console.WriteLine($"3. Fetch what a customer has ordered based on their OrderId");
+                Console.WriteLine($"4. Calculate the most expensive customer orders");
                 Console.WriteLine("5. Exit to menu");
 
                 while (!decision)
@@ -349,11 +350,13 @@ namespace NEA_Project
                                 decision = true;
                                 break;
                             case 3:
+                                CheckRows(tableName);
                                 GetCustomerOrdersWithProducts(tableName);
                                 decision = true;
                                 break;
                             case 4:
-                                CalculateMostExpensiveOrder();
+                                CheckRows(tableName);
+                                CalculateMostExpensiveOrder(tableName);
                                 decision = true;
                                 break;
                             case 5:
@@ -581,34 +584,35 @@ namespace NEA_Project
             bool isAssigned = false;
             SQLiteCommand sqlOrders = new SQLiteCommand($"SELECT * FROM Orders", conn);
             SQLiteDataReader orderReader = sqlOrders.ExecuteReader();
-            List<int> checkCustomerids = new List<int>();
+            List<int> usedCustomerIds = new List<int>();
 
             while (orderReader.Read())
             {
-                checkCustomerids.Add(Convert.ToInt32(orderReader["CustomerId"]));
+                usedCustomerIds.Add(Convert.ToInt32(orderReader["CustomerId"]));
             }
 
-            if (customerIds.Count == checkCustomerids.Count)
+            if (!isAssigned) //fix
+            {
+                while (!isAssigned)
+                {
+                    Console.WriteLine("Assign a customerId to this order");
+                    int userInputtedCustomerId = int.Parse(Console.ReadLine());
+
+                    if (!customerIds.Contains(userInputtedCustomerId)) { Console.Clear(); Console.WriteLine("The number inputted is not an available CustomerId"); }
+                    else
+                    {
+                        parameters.Add("CustomerId", userInputtedCustomerId);
+                        isAssigned = true;
+                    }
+                }
+            }
+            else
             {
                 Console.Clear();
                 Console.WriteLine("All the possible CustomerId's have been assigned already, thus you must add more customers into the database in order to have more orders \nPress any key to continue ");
                 Console.ReadKey();
                 CheckAdminStockPanel(tableName);
             }
-
-            while (!isAssigned)
-            {
-                Console.WriteLine("Assign a customerId to this order");
-                int userInputtedCustomerId = int.Parse(Console.ReadLine());
-
-                if (!customerIds.Contains(userInputtedCustomerId) || checkCustomerids.Contains(userInputtedCustomerId)) { Console.Clear(); Console.WriteLine("The number inputted is not an available CustomerId"); }
-                else
-                {
-                    parameters.Add("CustomerId", userInputtedCustomerId);
-                    isAssigned = true;
-                }
-            }
-
             return parameters;
         }
         public static Dictionary<string, object> ValidateSecondaryKeys(string tableName, List<int> productIds, List<int> orderIds, Dictionary<string, object> parameters, string output)
@@ -616,23 +620,34 @@ namespace NEA_Project
             bool isAssigned = false;
             SQLiteCommand sqlProductsInOrders = new SQLiteCommand($"SELECT * FROM ProductsInOrders", conn);
             SQLiteDataReader productsInOrdersReader = sqlProductsInOrders.ExecuteReader();
-            List<int> checkProductIds = new List<int>();
-            List<int> checkOrderIds = new List<int>();
+            List<int> usedProductIds = new List<int>();
+            List<int> usedOrderIds = new List<int>();
+            List<bool> isOrderIdUsed = new List<bool>();
+            bool entryCheck = false;
 
-
+            // orders: customerid not unique
             while (productsInOrdersReader.Read())
             {
-                checkProductIds.Add(Convert.ToInt32(productsInOrdersReader["ProductId"]));
-                checkOrderIds.Add(Convert.ToInt32(productsInOrdersReader["OrderId"]));
+                usedProductIds.Add(Convert.ToInt32(productsInOrdersReader["ProductId"]));
+                usedOrderIds.Add(Convert.ToInt32(productsInOrdersReader["OrderId"]));
             }
 
-            if (orderIds.Count == checkOrderIds.Count || productIds.Count == checkProductIds.Count) 
+            foreach (int availableOrderIds in orderIds)
             {
-                Console.Clear();
-                Console.WriteLine("All the possible (ProductId's or OrderId's) have been assigned already, thus you must add more records into one or either tables into the database in order to have more records in ProductsInOrders \nPress any key to continue ");
-                Console.ReadKey();
-                CheckAdminStockPanel(tableName);
+                isOrderIdUsed.Add(usedOrderIds.Contains(availableOrderIds));
+                entryCheck = isOrderIdUsed.All(ids => ids == true);
+                //use the All method to determine true or false values
+                // if there is a false entry, then allow the user to enter in more records
             }
+            Console.WriteLine(entryCheck);
+
+            //if (orderIds.Count == checkOrderIds.Count || productIds.Count == checkProductIds.Count)
+            //{
+            //    Console.Clear();
+            //    Console.WriteLine("All the possible (ProductId's or OrderId's) have been assigned already, thus you must add more records into one or either tables into the database in order to have more records in ProductsInOrders \nPress any key to continue ");
+            //    Console.ReadKey();
+            //    CheckAdminStockPanel(tableName);
+            //}
 
             while (!isAssigned && output == "ProductId")
             {
@@ -648,7 +663,7 @@ namespace NEA_Project
                 Console.WriteLine("Enter your desired OrderId");
                 int inputtedOrderId = int.Parse(Console.ReadLine());
 
-                if (checkOrderIds.Contains(inputtedOrderId) || !orderIds.Contains(inputtedOrderId)) { Console.Clear(); Console.WriteLine("The number inputted is not an available OrderId"); }
+                if (usedOrderIds.Contains(inputtedOrderId) || !orderIds.Contains(inputtedOrderId)) { Console.Clear(); Console.WriteLine("The number inputted is not an available OrderId"); }
                 else { parameters.Add("OrderId", inputtedOrderId); isAssigned = true; }
             }
 
@@ -731,14 +746,29 @@ namespace NEA_Project
             }
 
         }
+        public static void CheckRows(string tableName)
+        {
+            SQLiteCommand selectCustomers = new SQLiteCommand("SELECT * FROM Customers", conn);
+            SQLiteCommand selectOrders = new SQLiteCommand("SELECT * FROM Orders", conn);
+            SQLiteCommand selectProducts = new SQLiteCommand("SELECT * FROM Products", conn);
+            SQLiteCommand selectProductsInOrders = new SQLiteCommand("SELECT * FROM ProductsInOrders", conn);
+
+            SQLiteDataReader customers = selectCustomers.ExecuteReader();
+            SQLiteDataReader orders = selectOrders.ExecuteReader();
+            SQLiteDataReader products = selectProducts.ExecuteReader();
+            SQLiteDataReader productsInOrders = selectProductsInOrders.ExecuteReader();
+            Console.Clear();
+
+            if (!customers.HasRows || !orders.HasRows || !products.HasRows || !productsInOrders.HasRows) { Console.WriteLine("Before using this function you must input data into each table, press any key to continue"); Console.ReadKey(); CheckAdminStockPanel(tableName); }
+        }
         public static void GetCustomerOrdersWithProducts(string tableName)
         {
-            Console.Clear();
             SQLiteCommand sqlOrders = new SQLiteCommand($"SELECT * FROM Orders", conn);
             SQLiteDataReader orderReader = sqlOrders.ExecuteReader();
             List<int> availableOrderIds = new List<int>();
             int inputId;
             bool decision = false;
+
 
             while (orderReader.Read())
             {
@@ -749,7 +779,8 @@ namespace NEA_Project
             {
                 try
                 {
-                    Console.WriteLine("enter an index for your desired OrderId");
+                    Console.Clear();
+                    Console.WriteLine("enter a valid index for your desired OrderId");
                     inputId = int.Parse(Console.ReadLine());
 
                     if (availableOrderIds.Contains(inputId))
@@ -783,7 +814,7 @@ namespace NEA_Project
                             decision = true;
                         }
                     }
-                    else { Console.Clear();  Console.WriteLine("Incorrect OrderId"); }
+                    else { Console.Clear(); Console.WriteLine("Incorrect OrderId"); }
                 }
                 catch (Exception ex) when (ex is FormatException || ex is OverflowException)
                 {
@@ -791,7 +822,7 @@ namespace NEA_Project
                 }
             }
         }
-        public static void CalculateMostExpensiveOrder()
+        public static void CalculateMostExpensiveOrder(string tableName)
         {
             SQLiteCommand getProductOrderId = new SQLiteCommand("SELECT OrderId FROM ProductsInOrders", conn);
             SQLiteDataReader productOrderReader = getProductOrderId.ExecuteReader();
@@ -818,7 +849,10 @@ namespace NEA_Project
                 string lastName = orderReader.GetString(2);
                 decimal total = orderReader.GetDecimal(3);
 
-                Console.WriteLine($"The customer {customerId}: {firstName} {lastName} has a total spending of £{total}");
+                Console.WriteLine($"The Customer With CustomerId Of: {customerId}, {firstName} {lastName}, has a total spending of £{total}");
+                Console.WriteLine("\nPress Any Key To Continue");
+                Console.ReadKey();
+                CheckAdminStockPanel(tableName);
             }
         }
         public static void CheckCustomerStockPanel()
