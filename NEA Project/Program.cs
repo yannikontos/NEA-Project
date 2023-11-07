@@ -199,7 +199,6 @@ namespace NEA_Project
                 bool DoRecordItemsExist = true;
                 string outputText;
 
-
                 while (reader.Read())
                 {
                     foreach (var headers in headerMaps)
@@ -252,11 +251,10 @@ namespace NEA_Project
                     if (headerMaps.Count == columnValues.Count) { Console.WriteLine(); }
                 }
 
-
                 Console.WriteLine();
                 Console.WriteLine("Would you like to: ");
                 Console.WriteLine("1. Add, Update or Delete Values");
-                Console.WriteLine("2. View Analytics");
+                Console.WriteLine("2. View Overall Database Analytics");
                 Console.WriteLine("3. Filter Results");
                 Console.WriteLine("4. Exit to menu");
 
@@ -271,34 +269,6 @@ namespace NEA_Project
 
                         if (choice >= 1 && choice <= 4) { decision = true; }
                         else { Console.WriteLine("Invalid choice. Please enter integers in the range 1-4."); };
-
-
-                        // switch (choice)
-                        // {
-                        //     case 1:
-                        //         AddRecordsToTables(DoRecordItemsExist, tableName, itemId, columnValues, headerMaps);
-                        //         decision = true;
-                        //         break;
-                        //     case 2:
-                        //         DeleteRecordsFromTables(tableName, availableTableIds, tablePrimaryKey);
-                        //         decision = true;
-                        //         break;
-                        //     case 3:
-                        //         CheckRows(tableName);
-                        //         GetCustomerOrdersWithProducts(tableName);
-                        //         decision = true;
-                        //         break;
-                        //     case 4:
-                        //         CheckRows(tableName);
-                        //         CalculateMostExpensiveOrder(tableName);
-                        //         decision = true;
-                        //         break;
-                        //     case 5:
-                        //         AdminPage();
-                        //         decision = true;
-                        //         break;
-                        // }
-
 
                         switch (choice)
                         {
@@ -331,14 +301,13 @@ namespace NEA_Project
                 Console.WriteLine($"There are no currently listed items in the '{tableName}' table, would you like to add some? [Y/N]");
                 bool DoRecordItemsExist = false;
 
-
                 while (!decision)
                 {
                     try
                     {
                         char choice = Char.ToLower(char.Parse(Console.ReadLine()));
                         if (choice != 'y' || choice != 'n') { Console.WriteLine("Invalid choice. Please enter either [Y/N]"); }
-                        else { decision = true; }
+                        else { decision = true;  }
 
                         switch (choice)
                         {
@@ -415,23 +384,23 @@ namespace NEA_Project
         {
             bool decision = false;
             Console.Clear();
-
+            
             Console.WriteLine("Would you like to: ");
             Console.WriteLine("1. Get customer order details with inputted CustomerId");
             Console.WriteLine("2. Get most expensive customer orders (ascending / descending)");
             Console.WriteLine("3. Get the average customer order expenditure");
-            Console.WriteLine("4. Average quantity of items ordered");
+            Console.WriteLine("4. Get the average quantity of items ordered");
             Console.WriteLine($"5. Exit to menu");
 
             while (!decision)
             {
-                try
+                try 
                 {
                     int choice = int.Parse(Console.ReadLine());
-                    if (choice < 1 || choice > 5) { Console.WriteLine("Invalid input, please try again"); }
+                    if (choice < 1 || choice > 5 ) { Console.WriteLine("Invalid input, please try again"); }
                     else { decision = true; }
 
-                    switch (choice)
+                    switch(choice) 
                     {
                         case 1:
                             CheckRows(tableName);
@@ -442,19 +411,21 @@ namespace NEA_Project
                             CalculateMostExpensiveOrder(tableName);
                             break;
                         case 3:
-                            GetAverageCustomerSpending();
-                            break;
-
+                            CheckRows(tableName);
+                            GetAverageCustomerSpending(tableName);
+                        break;
                         case 4:
-                            GetAverageQuantityOfItems();
-                            break;
+                            CheckRows(tableName);
+                            GetAverageQuantityOfItems(tableName);
+                        break;
+                        case 5:
+                            CheckAdminStockPanel(tableName);
+                        break;
                     }
 
                 }
                 catch (Exception ex) when (ex is FormatException || ex is OverflowException) { Console.WriteLine("Invalid input, please try again"); }
             }
-
-
         }
         public static void FilterTable(string tableName)
         {
@@ -523,19 +494,19 @@ namespace NEA_Project
 
             while (ids.Read()) { currentlyExistingIds.Add(Convert.ToInt32(ids[tablePrimaryKey])); }
 
-            for (int i = 0; i < itemId; i++)
+            for (int i = 0; i < itemId; i++) 
             {
                 if (!currentlyExistingIds.Contains(i)) { missingIds.Add(i); }
             }
-
-            if (missingIds.Count > 0)
+            
+            if (missingIds.Count > 0) 
             {
                 itemId = missingIds.Min();
                 missingIds.Remove(itemId);
             }
 
-            foreach (var temp in missingIds) { System.Console.WriteLine(temp); }
-
+            foreach(var temp in missingIds) { System.Console.WriteLine(temp); }
+    
             if (!DoRecordItemsExist)
             {
                 foreach (var header in headerMaps)
@@ -670,9 +641,9 @@ namespace NEA_Project
             string pattern = @"^((([a-z]|\d|[!#\$%&'\*\+\-\/=\?\^_`{\|}~]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])+(\.([a-z]|\d|[!#\$%&'\*\+\-\/=\?\^_`{\|}~]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])+)*)|((\x22)((((\x20|\x09)*(\x0d\x0a))?(\x20|\x09)+)?(([\x01-\x08\x0b\x0c\x0e-\x1f\x7f]|\x21|[\x23-\x5b]|[\x5d-\x7e]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(\\([\x01-\x09\x0b\x0c\x0d-\x7f]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF]))))*(((\x20|\x09)*(\x0d\x0a))?(\x20|\x09)+)?(\x22)))@((([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.)+(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.?$";
             bool patternMatched = false;
 
-            while (!patternMatched)
+            while (!patternMatched) 
             {
-                try
+                try  
                 {
                     Console.WriteLine("enter your desired EmailAddress");
                     userInput = Console.ReadLine();
@@ -680,12 +651,12 @@ namespace NEA_Project
 
                     if (whichFunction == "AddValues" && isMatch) { parameters[value.Key] = userInput; patternMatched = true; }
                     else if (whichFunction == "UpdateRecords" && isMatch)
-                    {
+                    { 
                         updateCommand.Parameters.AddWithValue($"@{value.Key}", userInput);
                         updateCommand.CommandText += $"{value.Key} = @{value.Key}, ";
                         patternMatched = true;
                     }
-                    else { Console.Clear(); throw new FormatException(); }
+                    else  { Console.Clear(); throw new FormatException(); }
                 }
                 catch (Exception ex) when (ex is FormatException || ex is OverflowException) { Console.WriteLine("Incorrect Email Address, Please try again"); }
             }
@@ -698,22 +669,22 @@ namespace NEA_Project
             string phonePattern = @"\s*(?:\+?(\d{1,3}))?([-. (]*(\d{3})[-. )]*)?((\d{3})[-. ]*(\d{2,4})(?:[-.x ]*(\d+))?)\s*";
             bool patternMatched = false;
 
-            while (!patternMatched)
+            while (!patternMatched) 
             {
-                try
+                try  
                 {
                     Console.WriteLine("enter your desired PhoneNumber: ");
                     userInput = Console.ReadLine();
                     bool isMatch = Regex.IsMatch(userInput, phonePattern);
-
-                    if (whichFunction == "AddValues" && isMatch) { parameters[value.Key] = userInput; patternMatched = true; }
+                    
+                    if (whichFunction == "AddValues" && isMatch) { parameters[value.Key] = userInput; patternMatched = true;  }
                     else if (whichFunction == "UpdateRecords" && isMatch)
-                    {
+                    { 
                         updateCommand.Parameters.AddWithValue($"@{value.Key}", userInput);
                         updateCommand.CommandText += $"{value.Key} = @{value.Key}, ";
                         patternMatched = true;
                     }
-                    else { Console.Clear(); throw new FormatException(); }
+                    else  { Console.Clear(); throw new FormatException(); }
                 }
                 catch (Exception ex) when (ex is FormatException || ex is OverflowException) { Console.WriteLine("Incorrect Phone Number, Please try again"); }
             }
@@ -859,7 +830,7 @@ namespace NEA_Project
             SQLiteCommand sqlStockQuantity = new SQLiteCommand($"SELECT StockQuantity FROM Products WHERE ProductId = {getProductId}", conn);
             SQLiteDataReader stockQuantity = sqlStockQuantity.ExecuteReader();
 
-
+    
             while (stockQuantity.Read())
             {
                 availableQuantity = Convert.ToInt32(stockQuantity["stockQuantity"]);
@@ -884,7 +855,7 @@ namespace NEA_Project
                     Console.Clear();
                     Console.WriteLine("That amount of stock is not available, check if the product is in stock if needed");
                 }
-                else
+                else 
                 {
                     updateCommand.Parameters.AddWithValue($"@{value.Value}", inputtedQuantity);
                     updateCommand.CommandText += $"{value.Value} = @{value.Value}, ";
@@ -893,10 +864,11 @@ namespace NEA_Project
             }
             return inputtedQuantity;
         }
-        public static void UpdateRecordsFromTables(string tableName, Dictionary<string, object> columnValues, string tablePrimaryKey)
+        public static void UpdateRecordsFromTables(string tableName,  Dictionary<string, object> columnValues, string tablePrimaryKey)
         {
+            //less verbose
             Console.Clear();
-
+          
             bool isValidInt = false;
             int inputtedId = 0;
             List<int> validIds = new List<int>();
@@ -907,9 +879,9 @@ namespace NEA_Project
 
             while (invalidIdReader.Read()) { validIds.Add(Convert.ToInt32(invalidIdReader[tablePrimaryKey])); }
 
-            while (!isValidInt)
+            while (!isValidInt) 
             {
-                try
+                try 
                 {
                     Console.WriteLine("Enter the item id you would like to update");
                     inputtedId = int.Parse(Console.ReadLine());
@@ -927,7 +899,7 @@ namespace NEA_Project
                 object columnValue = values.Value;
 
                 if (columnHeaders == tablePrimaryKey) { continue; }
-
+                
                 if (columnHeaders == "OrderDate")
                 {
                     Console.WriteLine("enter your desired date: ");
@@ -947,10 +919,10 @@ namespace NEA_Project
                     bool isInt = input.All(char.IsDigit);
                     bool isDecimal = decimal.TryParse(input, out validDecimal);
 
-                    if (containsAnInt && columnValue.GetType() == typeof(string) || columnValue.GetType() == typeof(decimal) && !isDecimal || columnValue.GetType() == typeof(int) && !isInt || input == "")
+                    if (containsAnInt && columnValue.GetType() == typeof(string) || columnValue.GetType() == typeof(decimal) && !isDecimal || columnValue.GetType() == typeof(int) && !isInt || input == "") 
                     {
-                        Console.Clear();
-                        Console.WriteLine("Incorrect Input, please try again");
+                        Console.Clear(); 
+                        Console.WriteLine("Incorrect Input, please try again"); 
                         UpdateRecordsFromTables(tableName, columnValues, tablePrimaryKey);
                     }
 
@@ -1092,13 +1064,22 @@ namespace NEA_Project
         }
         public static void CalculateMostExpensiveOrder(string tableName)
         {
-            SQLiteCommand getProductOrderId = new SQLiteCommand("SELECT OrderId FROM ProductsInOrders", conn);
-            SQLiteDataReader productOrderReader = getProductOrderId.ExecuteReader();
-            List<int> productInOrderIds = new List<int>();
             Console.Clear();
+            bool hasOrderBeenInputted = false;
+            string orderMethod = "";
+    
+            while (!hasOrderBeenInputted)
+            {
+                try 
+                {
+                    Console.WriteLine("Would you like to order the table in ascending or descending order? [asc/desc]");
+                    orderMethod = Console.ReadLine().ToLower();
 
-
-            while (productOrderReader.Read()) { productInOrderIds.Add(Convert.ToInt32(productOrderReader["OrderId"])); }
+                    if (orderMethod == "asc" || orderMethod == "desc") { hasOrderBeenInputted = true; }
+                    else { Console.Clear(); Console.WriteLine("Invalid order property inputted"); }
+                }
+                catch (Exception ex) when (ex is FormatException) { Console.Clear(); Console.WriteLine("Invalid order property inputted"); }
+            }
 
             SQLiteCommand fetchOrders = new SQLiteCommand($@"SELECT Customers.CustomerId, Customers.FirstName, Customers.LastName, SUM(Products.Price * ProductsInOrders.Quantity) AS total
             FROM Customers
@@ -1106,11 +1087,10 @@ namespace NEA_Project
             LEFT JOIN ProductsInOrders ON Orders.OrderId = ProductsInOrders.OrderId
             LEFT JOIN Products ON ProductsInOrders.ProductId = Products.ProductId
             GROUP BY Customers.CustomerId, Customers.FirstName, Customers.LastName
-            ORDER BY total DESC LIMIT 3", conn);
-
+            ORDER BY total {orderMethod} LIMIT 3", conn);
 
             SQLiteDataReader orderReader = fetchOrders.ExecuteReader();
-
+            Console.Clear();
 
             while (orderReader.Read())
             {
@@ -1119,11 +1099,41 @@ namespace NEA_Project
                 string lastName = orderReader.GetString(2);
                 decimal total = orderReader.GetDecimal(3);
 
-
                 Console.WriteLine($"The Customer With CustomerId Of: {customerId}, {firstName} {lastName}, has a total spending of £{total}");
             }
 
             Console.WriteLine("\nPress Any Key To Continue");
+            Console.ReadKey();
+            CheckAdminStockPanel(tableName);
+        }
+        public static void GetAverageCustomerSpending(string tableName) 
+        {
+            SQLiteCommand getOrders = new SQLiteCommand($@"SELECT ProductsInOrders.ProductId, AVG(ProductsInOrders.Quantity * Products.Price) AS averageCustomerSpending
+            FROM ProductsInOrders
+            INNER JOIN Products ON ProductsInOrders.ProductId = Products.ProductId ", conn);
+            SQLiteDataReader spendingReader = getOrders.ExecuteReader();
+            Console.Clear();
+
+            while (spendingReader.Read()) 
+            {
+                decimal averageCustomerSpending = spendingReader.GetDecimal(1);
+                Console.WriteLine($"The average amount a customer spends on their orders are: £{Math.Round(averageCustomerSpending)}");
+            }
+            Console.WriteLine("Press any key to continue");
+            Console.ReadKey();
+            CheckAdminStockPanel(tableName);
+        }
+        public static void GetAverageQuantityOfItems(string tableName) 
+        {
+            SQLiteCommand getAverageQuantity = new SQLiteCommand($@"SELECT AVG(Quantity) AS averageQuantity FROM ProductsInOrders", conn);
+            SQLiteDataReader quantityReader = getAverageQuantity.ExecuteReader();
+
+            while (quantityReader.Read()) 
+            {
+                decimal averageQuantity = quantityReader.GetDecimal(0);
+                Console.WriteLine($"The average quantity of items a customer orders is: {Math.Round(averageQuantity)}");
+            }
+            Console.WriteLine("Press any key to continue");
             Console.ReadKey();
             CheckAdminStockPanel(tableName);
         }
