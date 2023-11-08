@@ -14,8 +14,7 @@ using System.Diagnostics.Eventing.Reader;
 using System.Collections;
 using System.Net.Security;
 using System.Runtime.InteropServices;
-using System.Transactions;
-
+using System.Diagnostics;
 
 namespace NEA_Project
 {
@@ -30,14 +29,11 @@ namespace NEA_Project
             conn.Close();
             Console.ReadLine();
         }
-
-
         public static void MakeLoginDecision()
         {
             int choice;
             bool decision = false;
             int clearScreen = 0;
-
 
             while (!decision)
             {
@@ -68,14 +64,13 @@ namespace NEA_Project
                     Console.WriteLine("Invalid choice. Please enter integers in the range 1-2.");
                 }
                 clearScreen++;
-                if (clearScreen >= 5) { MainMenu(); }
+                if (clearScreen >= 3) { MainMenu(); }
             }
             Console.ReadKey();
-        }
+        } //fine
         public static void AdminPage()
         {
             Console.Clear();
-
 
             int AdminInitialChoice;
             bool decision = false;
@@ -123,9 +118,9 @@ namespace NEA_Project
                     Console.WriteLine("Invalid choice. Please enter integers in the range 1-5.");
                 }
                 clearScreen++;
-                if (clearScreen >= 5) { AdminPage(); }
+                if (clearScreen >= 3) { AdminPage(); }
             }
-        }
+        } //fine
         public static void CheckAdminStockPanel(string tableName)
         {
             Console.Clear();
@@ -141,8 +136,133 @@ namespace NEA_Project
 
 
             Dictionary<string, object> columnValues = new Dictionary<string, object>();
+            Dictionary<string, Dictionary<string, Type>> tableColumnHeaders = GetColumnHeaders();
+
+            Console.WriteLine($"These are the currently listed {tableName} in the database: \n");
+            Dictionary<string, Type> headerMaps = tableColumnHeaders[tableName];
 
 
+            if (reader.HasRows)
+            {
+                bool DoRecordItemsExist = true;
+
+                while (reader.Read())
+                {
+                    foreach (var headers in headerMaps)
+                    {
+                        string recordHeader = headers.Key;
+                        Type recordType = headers.Value;
+
+                        if (recordType == typeof(int))
+                        {
+                            columnValues[recordHeader] = Convert.ToInt32(reader[recordHeader]);
+                        }
+                        else if (recordType == typeof(string))
+                        {
+                            columnValues[recordHeader] = reader[recordHeader].ToString();
+                        }
+                        else if (recordType == typeof(decimal))
+                        {
+                            columnValues[recordHeader] = Convert.ToDecimal(reader[recordHeader]);
+                        }
+                        // reader[recordHeader] is the value, i.e. 0, shirt, nice looking shirt, £20.50, 20
+                        // headers gives out the [record header name i.e. ProductId, ProductName and the data type i.e. string , int]
+                    }
+
+
+                    foreach (var value in columnValues)
+                    {
+                        string columnHeader = value.Key;
+                        object columnValue = value.Value;
+
+                        if (columnHeader == "ProductId" && tableName == "Products" || columnHeader == "OrderId" && tableName == "Orders" || columnHeader == "CustomerId" && tableName == "Customers" || columnHeader == "ProductInOrderId" && tableName == "ProductsInOrders") { tablePrimaryKey = columnHeader; itemId = (int)columnValue; availableTableIds.Add(itemId); }
+                        if (columnHeader == "Price") { Console.WriteLine($"{columnHeader}: £{columnValue}"); }
+                        else { Console.WriteLine($"{columnHeader}: {columnValue}"); }
+                    }
+
+                    if (headerMaps.Count == columnValues.Count) { Console.WriteLine(); }
+                }
+
+                Console.WriteLine();
+                Console.WriteLine("Would you like to: ");
+                Console.WriteLine("1. Add, Update or Delete Values");
+                Console.WriteLine("2. View Overall Database Analytics");
+                Console.WriteLine("3. Filter Results");
+                Console.WriteLine("4. Exit to menu");
+
+
+                while (!decision)
+                {
+                    try
+                    {
+                        int choice;
+                        choice = int.Parse(Console.ReadLine());
+
+                        if (choice >= 1 && choice <= 4) { decision = true; }
+                        else { Console.WriteLine("Invalid choice. Please enter integers in the range 1-4."); };
+
+                        switch (choice)
+                        {
+                            case 1:
+                                ChooseCRUDDecision(tableName, DoRecordItemsExist, itemId, columnValues, headerMaps, availableTableIds, tablePrimaryKey);
+                                break;
+                            case 2:
+                                ChooseAnalytics(tableName);
+                                break;
+                            case 3:
+                                FilterTable(tableName);
+                                break;
+                            case 4:
+                                AdminPage();
+                                break;
+                        }
+                    }
+                    catch (Exception ex) when (ex is FormatException || ex is OverflowException)
+                    {
+                        Console.WriteLine("Invalid choice. Please enter integers in the range 1-4.");
+                    }
+                    clearScreen++;
+                    if (clearScreen >= 3) { CheckAdminStockPanel(tableName); }
+                }
+            }
+
+
+            else
+            {
+                Console.WriteLine($"There are no currently listed items in the '{tableName}' table, would you like to add some? [Y/N]");
+                bool DoRecordItemsExist = false;
+
+                while (!decision)
+                {
+                    try
+                    {
+                        char choice = Char.ToLower(char.Parse(Console.ReadLine()));
+                        if (choice != 'y' || choice != 'n') { Console.WriteLine("Invalid choice. Please enter either [Y/N]"); }
+                        else { decision = true; }
+
+                        switch (choice)
+                        {
+                            case 'y':
+                                AddRecordsToTables(DoRecordItemsExist, tableName, itemId, columnValues, headerMaps, tablePrimaryKey);
+                                break;
+                            case 'n':
+                                AdminPage();
+                                break;
+                        }
+                    }
+
+
+                    catch (Exception ex) when (ex is FormatException || ex is OverflowException)
+                    {
+                        Console.WriteLine("Invalid choice. Please enter either [Y/N]");
+                    }
+                    clearScreen++;
+                    if (clearScreen >= 3) { CheckAdminStockPanel(tableName); }
+                }
+            }
+        } // fine mostly
+        public static Dictionary<string, Dictionary<string, Type>> GetColumnHeaders()
+        {
             Dictionary<string, Dictionary<string, Type>> tableColumnHeaders = new Dictionary<string, Dictionary<string, Type>>
             {
                 {
@@ -184,152 +304,12 @@ namespace NEA_Project
                 }
             };
 
-
-            Console.WriteLine($"These are the currently listed {tableName} in the database: \n");
-            Dictionary<string, Type> headerMaps = tableColumnHeaders[tableName];
-
-
-            if (reader.HasRows)
-            {
-                bool DoRecordItemsExist = true;
-                string outputText;
-
-                while (reader.Read())
-                {
-                    foreach (var headers in headerMaps)
-                    {
-                        string recordHeader = headers.Key;
-                        Type recordType = headers.Value;
-
-
-                        if (recordType == typeof(int))
-                        {
-                            columnValues[recordHeader] = Convert.ToInt32(reader[recordHeader]);
-                        }
-                        else if (recordType == typeof(string))
-                        {
-                            columnValues[recordHeader] = reader[recordHeader].ToString();
-                        }
-                        else if (recordType == typeof(decimal))
-                        {
-                            columnValues[recordHeader] = Convert.ToDecimal(reader[recordHeader]);
-                        }
-                        // reader[recordHeader] is the value, i.e. 0, shirt, nice looking shirt, £20.50, 20
-                        // headers gives out the [record header name i.e. ProductId, ProductName and the data type i.e. string , int]
-                    }
-
-
-                    foreach (var value in columnValues)
-                    {
-                        outputText = Regex.Replace(value.ToString(), @"\[|\]", "").Replace(", ", ": ");
-
-
-                        if (value.Key == "Price" && (decimal)value.Value >= 50) { outputText = $"Price: £{value.Value}"; Console.ForegroundColor = ConsoleColor.Red; }
-                        else if (value.Key == "Price" && (decimal)value.Value < 50) { outputText = $"Price: £{value.Value}"; Console.ForegroundColor = ConsoleColor.Green; }
-
-
-                        if (value.Key == "StockQuantity" && (int)value.Value <= 10) { outputText = $"StockQuantity: {value.Value}"; Console.ForegroundColor = ConsoleColor.Red; }
-
-
-                        if (value.Key == "Total") { outputText = $"Total: £{value.Value}"; }
-
-
-                        if (value.Key == "ProductId" && tableName == "Products" || value.Key == "OrderId" && tableName == "Orders" || value.Key == "CustomerId" && tableName == "Customers" || value.Key == "ProductInOrderId" && tableName == "ProductsInOrders") { tablePrimaryKey = value.Key; itemId = (int)value.Value; availableTableIds.Add(itemId); }
-
-
-                        // value gives out the [record header name, actual value of the header i.e. ProductId: 0 | ProductName: shirt]
-                        Console.WriteLine(outputText);
-                        Console.ResetColor();
-                    }
-
-
-                    if (headerMaps.Count == columnValues.Count) { Console.WriteLine(); }
-                }
-
-                Console.WriteLine();
-                Console.WriteLine("Would you like to: ");
-                Console.WriteLine("1. Add, Update or Delete Values");
-                Console.WriteLine("2. View Overall Database Analytics");
-                Console.WriteLine("3. Filter Results");
-                Console.WriteLine("4. Exit to menu");
-
-
-                while (!decision)
-                {
-                    try
-                    {
-                        int choice;
-                        choice = int.Parse(Console.ReadLine());
-
-
-                        if (choice >= 1 && choice <= 4) { decision = true; }
-                        else { Console.WriteLine("Invalid choice. Please enter integers in the range 1-4."); };
-
-                        switch (choice)
-                        {
-                            case 1:
-                                ChooseCRUDDecision(tableName, DoRecordItemsExist, itemId, columnValues, headerMaps, availableTableIds, tablePrimaryKey);
-                                break;
-                            case 2:
-                                ChooseAnalytics(tableName);
-                                break;
-                            case 3:
-                                FilterTable(tableName);
-                                break;
-                            case 4:
-                                AdminPage();
-                                break;
-                        }
-                    }
-                    catch (Exception ex) when (ex is FormatException || ex is OverflowException)
-                    {
-                        Console.WriteLine("Invalid choice. Please enter integers in the range 1-4.");
-                    }
-                    clearScreen++;
-                    if (clearScreen >= 5) { CheckAdminStockPanel(tableName); }
-                }
-            }
-
-
-            else
-            {
-                Console.WriteLine($"There are no currently listed items in the '{tableName}' table, would you like to add some? [Y/N]");
-                bool DoRecordItemsExist = false;
-
-                while (!decision)
-                {
-                    try
-                    {
-                        char choice = Char.ToLower(char.Parse(Console.ReadLine()));
-                        if (choice != 'y' || choice != 'n') { Console.WriteLine("Invalid choice. Please enter either [Y/N]"); }
-                        else { decision = true; }
-
-                        switch (choice)
-                        {
-                            case 'y':
-                                AddRecordsToTables(DoRecordItemsExist, tableName, itemId, columnValues, headerMaps, tablePrimaryKey);
-                                break;
-                            case 'n':
-                                AdminPage();
-                                break;
-                        }
-                    }
-
-
-                    catch (Exception ex) when (ex is FormatException || ex is OverflowException)
-                    {
-                        Console.WriteLine("Invalid choice. Please enter either [Y/N]");
-                    }
-                    clearScreen++;
-                    if (clearScreen >= 5) { CheckAdminStockPanel(tableName); }
-                }
-            }
-        }
+            return tableColumnHeaders;
+        } // fine
         public static void ChooseCRUDDecision(string tableName, bool DoRecordItemsExist, int itemId, Dictionary<string, object> columnValues, Dictionary<string, Type> headerMaps, List<int> availableTableIds, string tablePrimaryKey)
         {
             int clearScreen = 0;
             bool decision = false;
-
 
             Console.Clear();
             Console.WriteLine("Would you like to: ");
@@ -348,7 +328,6 @@ namespace NEA_Project
                     if (choice >= 1 && choice <= 4) { decision = true; }
                     else { Console.WriteLine("Invalid choice. Please enter either numbers within the range of 1-4"); }
 
-
                     switch (choice)
                     {
                         case 1:
@@ -364,21 +343,20 @@ namespace NEA_Project
                             CheckAdminStockPanel(tableName);
                             break;
                     }
-                    decision = true;
-
                 }
                 catch (Exception ex) when (ex is FormatException || ex is OverflowException)
                 {
                     Console.WriteLine("Invalid choice. Please enter either numbers within the range of 1-4");
                 }
                 clearScreen++;
-                if (clearScreen >= 5) { ChooseCRUDDecision(tableName, DoRecordItemsExist, itemId, columnValues, headerMaps, availableTableIds, tablePrimaryKey); }
+                if (clearScreen >= 3) { ChooseCRUDDecision(tableName, DoRecordItemsExist, itemId, columnValues, headerMaps, availableTableIds, tablePrimaryKey); }
             }
-        }
+        } //fine
         public static void ChooseAnalytics(string tableName)
         {
-            bool decision = false;
             Console.Clear();
+            bool decision = false;
+            int clearScreen = 0;
 
             Console.WriteLine("Would you like to: ");
             Console.WriteLine("1. Get customer order details with inputted CustomerId");
@@ -420,30 +398,35 @@ namespace NEA_Project
 
                 }
                 catch (Exception ex) when (ex is FormatException || ex is OverflowException) { Console.WriteLine("Invalid input, please try again"); }
+                clearScreen++;
+                if (clearScreen >= 3) { ChooseAnalytics(tableName); }
             }
-        }
+        } //fine
+        private delegate void ExecuteFilteringFunctions();
         public static void FilterTable(string tableName)
         {
             Console.Clear();
+            bool makeDecision = false;
+            int clearScreen = 0;
+            string determineResult = "";
 
+            Console.WriteLine($"Filter {tableName} items below :\n");
 
-            Dictionary<string, List<string>> filterMethods = new Dictionary<string, List<string>>
+            Dictionary<string, List<string>> filterMessages = new Dictionary<string, List<string>>
             {
                 {
                     "Products", new List<string>
                     {
-                        {"1. Filter by Price in ascending order"},
-                        {"2. Filter by Price in descending order"},
-                        {"3. Filter by ProductName in alphabetical order ascending"},
-                        {"4. Filter by ProductName in alphabetical order descending"},
-                        {"5. Exit"}
+                        {"1. Filter by Price in ascending / descending order"},
+                        {"2. Filter by ProductName in alphabetical order ascending / descending"},
+                        {"3. Exit"},
                     }
                 },
                 {
                     "Customers", new List<string>
                     {
-                        {"1. Filter by a customer's first name in ascending order"},
-                        {"2. Filter by a customer's first name in descending order"},
+                        {"1. Filter by a customer's full name in ascending / descending order"},
+                        {"2. Filter by a customer's last name in ascending / descending order"},
                         {"3. Exit"},
                     }
                 },
@@ -451,26 +434,59 @@ namespace NEA_Project
                     "Orders", new List<string>
                     {
                         {"1. Filter by order date (latest -> oldest)"},
-                        {"2. Filter by order date (oldest -> latest)"},
-                        {"3. Exit"}
+                        {"2. Exit"}
                     }
                 },
                 {
                     "ProductsInOrders", new List<string>
                     {
-                        {"1. Filter by quantity of items in ascending order"},
-                        {"2. Filter by quantity of items in descending order"},
-                        {"3. Exit"}
+                        {"1. Filter by quantity of items in ascending / descending order"},
+                        {"2. Exit"}
                     }
                 }
             };
 
+            List<string> getOptions = filterMessages[tableName];
 
-            foreach (var item in filterMethods[tableName])
+            Dictionary<string, ExecuteFilteringFunctions> filterMethods = new Dictionary<string, ExecuteFilteringFunctions>
+            {
+                {"1Products", () => FilterInputtedTables(tableName, "Price") },
+                {"2Products", () => FilterInputtedTables(tableName, "ProductName") },
+                {"1Customers", () => FilterInputtedTables(tableName, "FirstName") },
+                {"2Customers", () => FilterInputtedTables(tableName, "LastName") },
+                {"1Orders", () => FilterInputtedTables(tableName, "OrderDate") },
+                {"1ProductsInOrders", () => FilterInputtedTables(tableName, "Quantity") }
+            };
+
+
+            foreach (var item in getOptions)
             {
                 Console.WriteLine(item);
             }
-        }
+
+            while (!makeDecision)
+            {
+                try
+                {
+                    int choice = int.Parse(Console.ReadLine());
+
+                    if (choice < 1 || choice > getOptions.Count) { Console.WriteLine($"Incorrect input, ensure your input is within 1-{getOptions.Count}"); }
+                    else if (choice == getOptions.Count)
+                    {
+                        CheckAdminStockPanel(tableName);
+                    }
+                    else
+                    {
+                        makeDecision = true;
+                        determineResult = choice.ToString() + tableName;
+                        filterMethods[determineResult]();
+                    }
+                }
+                catch (Exception ex) when (ex is FormatException || ex is OverflowException) { Console.WriteLine($"Incorrect input, ensure your input is within 1-{getOptions.Count}"); }
+                clearScreen++;
+                if (clearScreen >= 3) { FilterTable(tableName); }
+            }
+        } // mostly fine
         public static void AddRecordsToTables(bool DoRecordItemsExist, string tableName, int itemId, Dictionary<string, object> columnValues, Dictionary<string, Type> headerMaps, string tablePrimaryKey)
         {
             Console.Clear();
@@ -489,18 +505,13 @@ namespace NEA_Project
 
             while (ids.Read()) { currentlyExistingIds.Add(Convert.ToInt32(ids[tablePrimaryKey])); }
 
-            for (int i = 0; i < itemId; i++)
-            {
-                if (!currentlyExistingIds.Contains(i)) { missingIds.Add(i); }
-            }
+            for (int i = 0; i < itemId; i++) { if (!currentlyExistingIds.Contains(i)) { missingIds.Add(i); } }
 
             if (missingIds.Count > 0)
             {
                 itemId = missingIds.Min();
                 missingIds.Remove(itemId);
             }
-
-            foreach (var temp in missingIds) { System.Console.WriteLine(temp); }
 
             if (!DoRecordItemsExist)
             {
@@ -544,7 +555,7 @@ namespace NEA_Project
                     parameters.Clear();
                 }
             }
-        }
+        } // mostly fine
         public static void ValidateKeys(string tableName, List<int> customerIds, List<int> productIds, List<int> orderIds)
         {
             SQLiteCommand sqlCustomers = new SQLiteCommand($"SELECT * FROM Customers", conn);
@@ -584,52 +595,55 @@ namespace NEA_Project
                 productIds.Clear();
                 orderIds.Clear();
 
-
                 while (fetchProductId.Read()) { productIds.Add(Convert.ToInt32(fetchProductId["ProductId"])); }
                 while (fetchOrderId.Read()) { orderIds.Add(Convert.ToInt32(fetchOrderId["OrderId"])); }
             }
-        }
+        }//fine
         public static Dictionary<string, object> AddValuesToQuery(Dictionary<string, object> columnValues, int itemId, Dictionary<string, object> parameters, string tableName, List<int> customerIds, List<int> productIds, List<int> orderIds)
         {
-            string output;
             string whichFunction = "AddValues";
-            SQLiteCommand nullCommand = new SQLiteCommand();
 
             foreach (var value in columnValues)
             {
-                output = value.Key.ToString();
-
+                string output = value.Key.ToString();
+                object columnValue = value.Value;
 
                 if (output == "ProductId" && tableName == "Products" || output == "OrderId" && tableName == "Orders" || output == "CustomerId" && tableName == "Customers" || output == "ProductInOrderId" && tableName == "ProductsInOrders") { Console.WriteLine($"{output}: {itemId}"); parameters.Add(output, itemId); }
-                else if (output == "OrderDate")
-                {
-                    Console.WriteLine("enter your desired date: ");
-                    DateTime date = DateTime.Parse(Console.ReadLine());
-                    parameters.Add(output, date);
-                }
-                else if (output == "PhoneNumber") { ValidatePhoneNumber(parameters, value, whichFunction, nullCommand); }
-                else if (output == "EmailAddress") { ValidateEmailAddress(parameters, value, whichFunction, nullCommand); }
-                else if (output == "CustomerId" && tableName == "Orders") { ValidateCustomerId(tableName, customerIds, parameters); }
-                else if (output == "ProductId" && tableName == "ProductsInOrders") { ValidateSecondaryKeys(tableName, productIds, orderIds, parameters, output); }
-                else if (output == "OrderId" && tableName == "ProductsInOrders") { ValidateSecondaryKeys(tableName, productIds, orderIds, parameters, output); }
-                else if (output == "Quantity" && tableName == "ProductsInOrders") { ValidateQuantity(parameters, value, whichFunction, nullCommand); }
                 else
                 {
-                    Console.WriteLine($"Enter your desired {output}:");
-                    string input = Console.ReadLine();
-                    decimal validDecimal = 0;
-                    bool containsAnInt = input.Any(char.IsDigit);
-                    bool isInt = input.All(char.IsDigit);
-                    bool isDecimal = decimal.TryParse(input, out validDecimal);
-                    // for .Any method, 'a2' '2' returns true, 'a' returns false, whereas 'all' method returns false on everything but only ints, or is true on anything containing a char
-
-
-                    if (containsAnInt && value.Value.GetType() == typeof(string) || value.Value.GetType() == typeof(decimal) && !isDecimal || value.Value.GetType() == typeof(int) && !isInt || input == "") { throw new FormatException(); }
-                    else { parameters.Add(output, input); }
+                    switch (output + tableName)
+                    {
+                        case "OrderDateOrders":
+                            Console.WriteLine("enter your desired date: ");
+                            DateTime date = DateTime.Parse(Console.ReadLine());
+                            parameters.Add(output, date);
+                            break;
+                        case "PhoneNumberCustomers":
+                            ValidatePhoneNumber(parameters, value, whichFunction, null);
+                            break;
+                        case "EmailAddressCustomers":
+                            ValidateEmailAddress(parameters, value, whichFunction, null);
+                            break;
+                        case "CustomerIdOrders":
+                            ValidateCustomerId(tableName, customerIds, parameters);
+                            break;
+                        case "ProductIdProductsInOrders":
+                            ValidateSecondaryKeys(tableName, productIds, orderIds, parameters, output);
+                            break;
+                        case "OrderIdProductsInOrders":
+                            ValidateSecondaryKeys(tableName, productIds, orderIds, parameters, output);
+                            break;
+                        case "QuantityProductsInOrders":
+                            ValidateQuantity(parameters, value, whichFunction, null);
+                            break;
+                        default:
+                            GetUserInputForColumnHeaders(output, parameters, columnValue);
+                            break;
+                    }
                 }
             }
             return parameters;
-        }
+        } // fine
         public static string ValidateEmailAddress(Dictionary<string, object> parameters, KeyValuePair<string, object> value, string whichFunction, SQLiteCommand updateCommand)
         {
             string userInput = "";
@@ -657,7 +671,7 @@ namespace NEA_Project
             }
 
             return userInput;
-        }
+        } // needs rework
         public static string ValidatePhoneNumber(Dictionary<string, object> parameters, KeyValuePair<string, object> value, string whichFunction, SQLiteCommand updateCommand)
         {
             string userInput = "";
@@ -684,7 +698,7 @@ namespace NEA_Project
                 catch (Exception ex) when (ex is FormatException || ex is OverflowException) { Console.WriteLine("Incorrect Phone Number, Please try again"); }
             }
             return userInput;
-        }
+        } // needs rework
         public static Dictionary<string, object> ValidateCustomerId(string tableName, List<int> customerIds, Dictionary<string, object> parameters)
         {
             bool isAssigned = false;
@@ -723,7 +737,7 @@ namespace NEA_Project
                 CheckAdminStockPanel(tableName);
             }
             return parameters;
-        }
+        } // fine
         public static Dictionary<string, object> ValidateSecondaryKeys(string tableName, List<int> productIds, List<int> orderIds, Dictionary<string, object> parameters, string output)
         {
             bool isAssigned = false;
@@ -763,7 +777,6 @@ namespace NEA_Project
                 {"NoStock", "The item corresponding to your inputted Product ID is currently out of stock"},
                 {"NoID", "The item corresponding to your inputted Product ID does not exist in the database"},
 
-
                 {"ItemID", "The inputted OrderID is already being used in this table"},
                 {"IDDoesNotExist", "The inputted OrderID does not exist"},
             };
@@ -776,9 +789,7 @@ namespace NEA_Project
                     Console.WriteLine("Enter your desired ProductId");
                     int inputtedProductId = int.Parse(Console.ReadLine());
 
-
                     outputtedErrorMessage = productsOutOfStock.Contains(inputtedProductId) ? errorMessage["NoStock"] : errorMessage["NoID"];
-
 
                     if (!productIds.Contains(inputtedProductId) || productsOutOfStock.Contains(inputtedProductId)) { Console.Clear(); Console.WriteLine(outputtedErrorMessage); }
                     else { parameters.Add("ProductId", inputtedProductId); isAssigned = true; }
@@ -790,9 +801,7 @@ namespace NEA_Project
                     Console.WriteLine("Enter your desired OrderId");
                     int inputtedOrderId = int.Parse(Console.ReadLine());
 
-
                     outputtedErrorMessage = usedOrderIds.Contains(inputtedOrderId) ? errorMessage["ItemID"] : errorMessage["IDDoesNotExist"];
-
 
                     if (usedOrderIds.Contains(inputtedOrderId) || !orderIds.Contains(inputtedOrderId)) { Console.Clear(); Console.WriteLine(outputtedErrorMessage); }
                     else { parameters.Add("OrderId", inputtedOrderId); isAssigned = true; }
@@ -805,9 +814,7 @@ namespace NEA_Project
                 Console.ReadKey();
                 CheckAdminStockPanel(tableName);
             }
-
-
-            return parameters;
+            return parameters; // fine mostly
         }
         public static int ValidateQuantity(Dictionary<string, object> parameters, KeyValuePair<string, object> value, string whichFunction, SQLiteCommand updateCommand)
         {
@@ -857,11 +864,24 @@ namespace NEA_Project
                     isAssigned = true;
                 }
             }
-            return inputtedQuantity;
+            return inputtedQuantity; //fix
         }
+        public static void GetUserInputForColumnHeaders(string output, Dictionary<string, object> parameters, object columnValue)
+        {
+            Console.WriteLine($"Enter your desired {output}:");
+            string input = Console.ReadLine();
+            decimal validDecimal = 0;
+            bool containsAnInt = input.Any(char.IsDigit);
+            bool isInt = input.All(char.IsDigit);
+            bool isDecimal = decimal.TryParse(input, out validDecimal);
+            //for the .Any method, 'a2' '2' returns true, 'a' returns false, whereas 'all' method returns false on everything but only ints, or is true on anything containing a char
+
+            if (containsAnInt && columnValue.GetType() == typeof(string) || columnValue.GetType() == typeof(decimal) && !isDecimal || columnValue.GetType() == typeof(int) && !isInt || string.IsNullOrWhiteSpace(input)) { throw new FormatException(); }
+            else { parameters.Add(output, input); }
+        } // fine
         public static void UpdateRecordsFromTables(string tableName, Dictionary<string, object> columnValues, string tablePrimaryKey)
         {
-            //less verbose
+            //less verbose - DO THIS
             Console.Clear();
 
             bool isValidInt = false;
@@ -958,24 +978,19 @@ namespace NEA_Project
                         Console.WriteLine($"Item index {userInput} has been deleted from {tableName}, enter any key to continue");
                         Console.ReadKey();
 
-
                         CheckAdminStockPanel(tableName);
                         decision = true;
                     }
                     else { throw new FormatException(); }
-
-
                 }
                 catch (Exception ex) when (ex is FormatException || ex is OverflowException)
                 {
                     Console.WriteLine("Invalid choice, Please enter a valid integer next time.");
                 }
                 clearScreen++;
-                if (clearScreen >= 5) { DeleteRecordsFromTables(tableName, availableTableIds, tablePrimaryKey); }
+                if (clearScreen >= 3) { DeleteRecordsFromTables(tableName, availableTableIds, tablePrimaryKey); }
             }
-
-
-        }
+        } //fine
         public static void CheckRows(string tableName)
         {
             SQLiteCommand selectCustomers = new SQLiteCommand("SELECT * FROM Customers", conn);
@@ -990,9 +1005,8 @@ namespace NEA_Project
             SQLiteDataReader productsInOrders = selectProductsInOrders.ExecuteReader();
             Console.Clear();
 
-
             if (!customers.HasRows || !orders.HasRows || !products.HasRows || !productsInOrders.HasRows) { Console.WriteLine("Before using this function you must input data into each table, press any key to continue"); Console.ReadKey(); CheckAdminStockPanel(tableName); }
-        }
+        } //fine
         public static void GetCustomerOrdersWithProducts(string tableName)
         {
             SQLiteCommand sqlOrders = new SQLiteCommand($"SELECT * FROM Orders", conn);
@@ -1014,7 +1028,6 @@ namespace NEA_Project
                     Console.WriteLine("enter a valid index for your desired OrderId");
                     inputId = int.Parse(Console.ReadLine());
 
-
                     if (availableOrderIds.Contains(inputId))
                     {
                         SQLiteCommand selectOrderDetails = new SQLiteCommand($@"SELECT ProductsInOrders.OrderId, Orders.OrderDate, Customers.FirstName,
@@ -1027,7 +1040,6 @@ namespace NEA_Project
 
 
                         SQLiteDataReader orderDetails = selectOrderDetails.ExecuteReader();
-
 
                         while (orderDetails.Read())
                         {
@@ -1057,25 +1069,11 @@ namespace NEA_Project
                     Console.WriteLine("enter a valid integer index.");
                 }
             }
-        }
+        } // fine but review
         public static void CalculateMostExpensiveOrder(string tableName)
         {
             Console.Clear();
-            bool hasOrderBeenInputted = false;
-            string orderMethod = "";
-
-            while (!hasOrderBeenInputted)
-            {
-                try
-                {
-                    Console.WriteLine("Would you like to order the table in ascending or descending order? [asc/desc]");
-                    orderMethod = Console.ReadLine().ToLower();
-
-                    if (orderMethod == "asc" || orderMethod == "desc") { hasOrderBeenInputted = true; }
-                    else { Console.Clear(); Console.WriteLine("Invalid order property inputted"); }
-                }
-                catch (Exception ex) when (ex is FormatException) { Console.Clear(); Console.WriteLine("Invalid order property inputted"); }
-            }
+            string orderMethod = GetOrderMethod();
 
             SQLiteCommand fetchOrders = new SQLiteCommand($@"SELECT Customers.CustomerId, Customers.FirstName, Customers.LastName, SUM(Products.Price * ProductsInOrders.Quantity) AS total
             FROM Customers
@@ -1101,7 +1099,7 @@ namespace NEA_Project
             Console.WriteLine("\nPress Any Key To Continue");
             Console.ReadKey();
             CheckAdminStockPanel(tableName);
-        }
+        } // fine but needs review
         public static void GetAverageCustomerSpending(string tableName)
         {
             SQLiteCommand getOrders = new SQLiteCommand($@"SELECT ProductsInOrders.ProductId, AVG(ProductsInOrders.Quantity * Products.Price) AS averageCustomerSpending
@@ -1118,7 +1116,7 @@ namespace NEA_Project
             Console.WriteLine("Press any key to continue");
             Console.ReadKey();
             CheckAdminStockPanel(tableName);
-        }
+        } //fine
         public static void GetAverageQuantityOfItems(string tableName)
         {
             SQLiteCommand getAverageQuantity = new SQLiteCommand($@"SELECT AVG(Quantity) AS averageQuantity FROM ProductsInOrders", conn);
@@ -1132,7 +1130,57 @@ namespace NEA_Project
             Console.WriteLine("Press any key to continue");
             Console.ReadKey();
             CheckAdminStockPanel(tableName);
-        }
+        }//fine
+        public static void FilterInputtedTables(string tableName, string whichFilter)
+        {
+            string orderMethod = GetOrderMethod();
+            int rowChecker = 0;
+
+            Dictionary<string, Dictionary<string, Type>> tableColumnHeaders = GetColumnHeaders();
+            SQLiteCommand getDesiredFilter = new SQLiteCommand($"SELECT * FROM {tableName} ORDER BY {whichFilter} {orderMethod}", conn);
+            SQLiteDataReader priceReader = getDesiredFilter.ExecuteReader();
+            Console.Clear();
+
+            Console.WriteLine($"Here is the sorted {tableName} table in sorted order of {whichFilter} {orderMethod} \n");
+
+            while (priceReader.Read())
+            {
+                foreach (var header in tableColumnHeaders[tableName])
+                {
+                    string columnHeader = header.Key;
+
+                    if (columnHeader == "Price") { Console.WriteLine($"{columnHeader}: £{priceReader[header.Key]}"); }
+                    else { Console.WriteLine($"{columnHeader}: {priceReader[header.Key]}"); }
+
+                    rowChecker++;
+                    if (rowChecker == tableColumnHeaders[tableName].Count) { Console.WriteLine(); rowChecker = 0; }
+                }
+            }
+
+            Console.WriteLine("Items sorted, press any key to continue");
+            Console.ReadKey();
+            CheckAdminStockPanel(tableName);
+        } //fine
+        public static string GetOrderMethod()
+        {
+            Console.Clear();
+            bool hasOrderBeenInputted = false;
+            string orderMethod = "";
+
+            while (!hasOrderBeenInputted)
+            {
+                try
+                {
+                    Console.WriteLine("Would you like to order the table in ascending or descending order? [asc/desc]");
+                    orderMethod = Console.ReadLine().ToLower();
+
+                    if (orderMethod == "asc" || orderMethod == "desc") { hasOrderBeenInputted = true; }
+                    else { Console.Clear(); Console.WriteLine("Invalid order property inputted"); }
+                }
+                catch (Exception ex) when (ex is FormatException) { Console.Clear(); Console.WriteLine("Invalid order property inputted"); }
+            }
+            return orderMethod;
+        } //fine
         public static void MainMenu()
         {
             Console.Clear();
@@ -1141,7 +1189,6 @@ namespace NEA_Project
             Console.WriteLine("1. Admin's Page");
             Console.WriteLine("2. Exit");
             MakeLoginDecision();
-        }
+        } //fine
     }
 }
-//add filter methods then we good
