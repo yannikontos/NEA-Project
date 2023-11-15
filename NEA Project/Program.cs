@@ -127,7 +127,6 @@ namespace NEA_Project
             SQLiteCommand sqlSelect = new SQLiteCommand($"SELECT * FROM {tableName}", conn);
             SQLiteDataReader reader = sqlSelect.ExecuteReader();
 
-
             bool decision = false;
             int clearScreen = 0;
             int itemId = 0;
@@ -318,7 +317,6 @@ namespace NEA_Project
             Console.WriteLine($"3. Delete {tableName} records in the table");
             Console.WriteLine($"4. Exit to menu");
 
-
             while (!decision)
             {
                 try
@@ -425,7 +423,7 @@ namespace NEA_Project
                 {
                     "Customers", new List<string>
                     {
-                        {"1. Filter by a customer's full name in ascending / descending order"},
+                        {"1. Filter by a customer's first name in ascending / descending order"},
                         {"2. Filter by a customer's last name in ascending / descending order"},
                         {"3. Exit"},
                     }
@@ -498,12 +496,15 @@ namespace NEA_Project
             List<int> orderIds = new List<int>();
             HashSet<int> currentlyExistingIds = new HashSet<int>();
             List<int> missingIds = new List<int>();
-            SQLiteCommand checkIds = new SQLiteCommand($"SELECT {tablePrimaryKey} FROM {tableName}", conn);
-            SQLiteDataReader ids = checkIds.ExecuteReader();
 
             itemId = DoRecordItemsExist ? itemId + 1 : itemId;
 
-            while (ids.Read()) { currentlyExistingIds.Add(Convert.ToInt32(ids[tablePrimaryKey])); }
+            if (DoRecordItemsExist)
+            {
+                SQLiteCommand checkIds = new SQLiteCommand($"SELECT {tablePrimaryKey} FROM {tableName}", conn);
+                SQLiteDataReader ids = checkIds.ExecuteReader();
+                while (ids.Read()) { currentlyExistingIds.Add(Convert.ToInt32(ids[tablePrimaryKey])); }
+            };
 
             for (int i = 0; i < itemId; i++) { if (!currentlyExistingIds.Contains(i)) { missingIds.Add(i); } }
 
@@ -1192,3 +1193,5 @@ namespace NEA_Project
         } //fine
     }
 }
+
+
