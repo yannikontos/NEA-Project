@@ -817,13 +817,13 @@ namespace NEA_Project
             }
             return parameters; // fine mostly
         }
-        public static int ValidateQuantity(Dictionary<string, object> parameters, KeyValuePair<string, object> value, string whichFunction, SQLiteCommand updateCommand)
+        public static int ValidateQuantity(Dictionary<string, object> parameters, KeyValuePair<string, object> value, string whichFunction, SQLiteCommand updateCommand, string tableName)
         {
             bool isAssigned = false;
             int inputtedQuantity = 0;
             int getProductId = 0;
             int availableQuantity = 0;
-
+            // SQLiteCommand updateCommand = new SQLiteCommand($"UPDATE {tableName} SET ", conn);
 
             foreach (var item in parameters)
             {
@@ -834,10 +834,7 @@ namespace NEA_Project
             SQLiteDataReader stockQuantity = sqlStockQuantity.ExecuteReader();
 
 
-            while (stockQuantity.Read())
-            {
-                availableQuantity = Convert.ToInt32(stockQuantity["stockQuantity"]);
-            }
+            while (stockQuantity.Read()) { availableQuantity = Convert.ToInt32(stockQuantity["stockQuantity"]); }
 
 
             while (!isAssigned && value.Key == "Quantity")
@@ -853,40 +850,38 @@ namespace NEA_Project
                     updateStockAvailability.ExecuteNonQuery();
                     isAssigned = true;
                 }
-                else if (whichFunction == "AddValues")
-                {
-                    Console.Clear();
-                    Console.WriteLine("That amount of stock is not available, check if the product is in stock if needed");
-                }
+                else if (whichFunction == "AddValues") { Console.Clear(); Console.WriteLine("That amount of stock is not available, check if the product is in stock if needed"); }
                 else
                 {
+                    updateCommand = new SQLiteCommand($"UPDATE {tableName} SET {value.Value} = ", conn);
+
                     updateCommand.Parameters.AddWithValue($"@{value.Value}", inputtedQuantity);
                     updateCommand.CommandText += $"{value.Value} = @{value.Value}, ";
                     isAssigned = true;
                 }
             }
-            return inputtedQuantity; //fix
+            return inputtedQuantity; //fix (working on this)
         }
         public static void GetUserInputForColumnHeaders(string output, Dictionary<string, object> parameters, object columnValue)
         {
             Console.WriteLine($"Enter your desired {output}:");
-            string input = Console.ReadLine();
+            string getUserInput = Console.ReadLine();
             decimal validDecimal = 0;
-            bool containsAnInt = input.Any(char.IsDigit);
-            bool isInt = input.All(char.IsDigit);
-            bool isDecimal = decimal.TryParse(input, out validDecimal);
-            //for the .Any method, 'a2' '2' returns true, 'a' returns false, whereas 'all' method returns false on everything but only ints, or is true on anything containing a char
+            bool stringContainsInt = getUserInput.Any(char.IsDigit);
+            bool isStringAnInt = getUserInput.All(char.IsDigit);
+            bool isStringDecimal = decimal.TryParse(getUserInput, out validDecimal);
+            //for the .Any method, 'a2' '2' returns true, 'a' returns false, whereas 'all' method returns false on everything but only ints, or is true on anything containing a char. simply does input validation
 
-            if (containsAnInt && columnValue.GetType() == typeof(string) || columnValue.GetType() == typeof(decimal) && !isDecimal || columnValue.GetType() == typeof(int) && !isInt || string.IsNullOrWhiteSpace(input)) { throw new FormatException(); }
-            else { parameters.Add(output, input); }
-        } // fine
+            if (stringContainsInt && columnValue.GetType() == typeof(string) || columnValue.GetType() == typeof(decimal) && !isStringDecimal || columnValue.GetType() == typeof(int) && !isStringAnInt || string.IsNullOrWhiteSpace(getUserInput)) { throw new FormatException(); }
+            else { parameters.Add(output, getUserInput); }
+        } // completely fine, don't touch
         public static void UpdateRecordsFromTables(string tableName, Dictionary<string, object> columnValues, string tablePrimaryKey)
         {
             //less verbose - DO THIS
             Console.Clear();
 
             bool isValidInt = false;
-            int inputtedId = 0;
+            int userInputtedId = 0;
             List<int> validIds = new List<int>();
             string whichFunction = "UpdateRecords";
 
@@ -900,8 +895,8 @@ namespace NEA_Project
                 try
                 {
                     Console.WriteLine("Enter the item id you would like to update");
-                    inputtedId = int.Parse(Console.ReadLine());
-                    inputtedId = validIds.Contains(inputtedId) ? inputtedId : throw new FormatException();
+                    userInputtedId = int.Parse(Console.ReadLine());
+                    userInputtedId = validIds.Contains(userInputtedId) ? userInputtedId : throw new FormatException();
                     isValidInt = true;
                 }
                 catch (Exception ex) when (ex is FormatException || ex is OverflowException) { Console.Clear(); Console.WriteLine("enter a valid integer index."); }
@@ -925,7 +920,7 @@ namespace NEA_Project
                 }
                 else if (columnHeaders == "PhoneNumber") { ValidatePhoneNumber(columnValues, values, whichFunction, updateCommand); }
                 else if (columnHeaders == "EmailAddress") { ValidateEmailAddress(columnValues, values, whichFunction, updateCommand); }
-                else if (columnHeaders == "Quantity" && tableName == "ProductsInOrders") { ValidateQuantity(columnValues, values, whichFunction, updateCommand); }
+                else if (columnHeaders == "Quantity" && tableName == "ProductsInOrders") { ValidateQuantity(columnValues, values, whichFunction, updateCommand, tableName); }
                 else
                 {
                     Console.WriteLine($"Enter your desired {columnHeaders}:");
@@ -948,7 +943,7 @@ namespace NEA_Project
             }
 
             updateCommand.CommandText = updateCommand.CommandText.TrimEnd(',', ' ') + $" WHERE {tablePrimaryKey} = @{tablePrimaryKey}";
-            updateCommand.Parameters.AddWithValue($"@{tablePrimaryKey}", inputtedId);
+            updateCommand.Parameters.AddWithValue($"@{tablePrimaryKey}", userInputtedId);
 
             updateCommand.ExecuteNonQuery();
 
@@ -959,24 +954,23 @@ namespace NEA_Project
         public static void DeleteRecordsFromTables(string tableName, List<int> availableTableIds, string tablePrimaryKey)
         {
             Console.Clear();
-            int userInput;
+            int getUserInput;
             int clearScreen = 0;
             bool decision = false;
-
 
             while (!decision)
             {
                 try
                 {
                     Console.WriteLine("Enter the item index you want to delete");
-                    userInput = int.Parse(Console.ReadLine());
+                    getUserInput = int.Parse(Console.ReadLine());
 
 
-                    if (availableTableIds.Contains(userInput))
+                    if (availableTableIds.Contains(getUserInput))
                     {
-                        SQLiteCommand sqlDelete = new SQLiteCommand($"DELETE FROM {tableName} WHERE {tablePrimaryKey} = {userInput}", conn);
+                        SQLiteCommand sqlDelete = new SQLiteCommand($"DELETE FROM {tableName} WHERE {tablePrimaryKey} = {getUserInput}", conn);
                         sqlDelete.ExecuteNonQuery();
-                        Console.WriteLine($"Item index {userInput} has been deleted from {tableName}, enter any key to continue");
+                        Console.WriteLine($"Item index {getUserInput} has been deleted from {tableName}, enter any key to continue");
                         Console.ReadKey();
 
                         CheckAdminStockPanel(tableName);
@@ -991,14 +985,13 @@ namespace NEA_Project
                 clearScreen++;
                 if (clearScreen >= 3) { DeleteRecordsFromTables(tableName, availableTableIds, tablePrimaryKey); }
             }
-        } //fine
+        } // completely fine, don't touch
         public static void CheckRows(string tableName)
         {
             SQLiteCommand selectCustomers = new SQLiteCommand("SELECT * FROM Customers", conn);
             SQLiteCommand selectOrders = new SQLiteCommand("SELECT * FROM Orders", conn);
             SQLiteCommand selectProducts = new SQLiteCommand("SELECT * FROM Products", conn);
             SQLiteCommand selectProductsInOrders = new SQLiteCommand("SELECT * FROM ProductsInOrders", conn);
-
 
             SQLiteDataReader customers = selectCustomers.ExecuteReader();
             SQLiteDataReader orders = selectOrders.ExecuteReader();
@@ -1007,18 +1000,18 @@ namespace NEA_Project
             Console.Clear();
 
             if (!customers.HasRows || !orders.HasRows || !products.HasRows || !productsInOrders.HasRows) { Console.WriteLine("Before using this function you must input data into each table, press any key to continue"); Console.ReadKey(); CheckAdminStockPanel(tableName); }
-        } //fine
+        } // completely fine, don't touch
         public static void GetCustomerOrdersWithProducts(string tableName)
         {
-            SQLiteCommand sqlOrders = new SQLiteCommand($"SELECT * FROM Orders", conn);
-            SQLiteDataReader orderReader = sqlOrders.ExecuteReader();
+            SQLiteCommand getSqlOrders = new SQLiteCommand($"SELECT * FROM Orders", conn);
+            SQLiteDataReader sqlOrderReader = getSqlOrders.ExecuteReader();
             List<int> availableOrderIds = new List<int>();
-            int inputId;
+            int userInputId;
             bool decision = false;
 
-            while (orderReader.Read())
+            while (sqlOrderReader.Read())
             {
-                availableOrderIds.Add(Convert.ToInt32(orderReader["OrderId"]));
+                availableOrderIds.Add(Convert.ToInt32(sqlOrderReader["OrderId"]));
             }
 
             while (!decision)
@@ -1027,36 +1020,39 @@ namespace NEA_Project
                 {
                     Console.Clear();
                     Console.WriteLine("enter a valid index for your desired OrderId");
-                    inputId = int.Parse(Console.ReadLine());
+                    userInputId = int.Parse(Console.ReadLine());
 
-                    if (availableOrderIds.Contains(inputId))
+                    if (availableOrderIds.Contains(userInputId))
                     {
                         SQLiteCommand selectOrderDetails = new SQLiteCommand($@"SELECT ProductsInOrders.OrderId, Orders.OrderDate, Customers.FirstName,
                         Customers.LastName, Products.ProductName, Products.Price, ProductsInOrders.Quantity, SUM(ProductsInOrders.Quantity * Products.Price) AS totalSpending
                         FROM ProductsInOrders
-                        INNER JOIN Orders ON ProductsInOrders.OrderId = Orders.OrderId
-                        INNER JOIN Customers ON Orders.CustomerId = Customers.CustomerId
-                        INNER JOIN Products ON ProductsInOrders.ProductId = Products.ProductId
-                        WHERE ProductsInOrders.OrderId = {inputId}; ", conn);
+                        INNER JOIN Orders 
+                        ON ProductsInOrders.OrderId = Orders.OrderId
+                        INNER JOIN Customers 
+                        ON Orders.CustomerId = Customers.CustomerId
+                        INNER JOIN Products 
+                        ON ProductsInOrders.ProductId = Products.ProductId
+                        WHERE ProductsInOrders.OrderId = {userInputId}; ", conn);
 
 
-                        SQLiteDataReader orderDetails = selectOrderDetails.ExecuteReader();
+                        SQLiteDataReader getOrderDetails = selectOrderDetails.ExecuteReader();
 
-                        while (orderDetails.Read())
+                        while (getOrderDetails.Read())
                         {
                             Console.Clear();
-                            int resultOrderId = orderDetails.GetInt32(0);
-                            DateTime orderDate = orderDetails.GetDateTime(1);
-                            string firstName = orderDetails.GetString(2);
-                            string lastName = orderDetails.GetString(3);
-                            string productName = orderDetails.GetString(4);
-                            decimal price = orderDetails.GetDecimal(5);
-                            int quantity = orderDetails.GetInt32(6);
-                            decimal totalSpending = orderDetails.GetDecimal(7);
+                            int orderDetailsId = getOrderDetails.GetInt32(0);
+                            DateTime orderDetailsDate = getOrderDetails.GetDateTime(1);
+                            string firstName = getOrderDetails.GetString(2);
+                            string lastName = getOrderDetails.GetString(3);
+                            string productName = getOrderDetails.GetString(4);
+                            decimal productPrice = getOrderDetails.GetDecimal(5);
+                            int productQuantity = getOrderDetails.GetInt32(6);
+                            decimal totalSpending = getOrderDetails.GetDecimal(7);
 
 
                             Console.WriteLine("Item found: \n");
-                            Console.WriteLine($"Order ID: {resultOrderId}, \nOrder Date: {orderDate}, \nCustomer Name: {firstName} {lastName}, \nProduct Ordered: {productName}, \nProduct Price: £{price}, \nQuantity: {quantity}, \nTotal: £{totalSpending}\n");
+                            Console.WriteLine($"Order ID: {orderDetailsId}, \nOrder Date: {orderDetailsDate}, \nCustomer Name: {firstName} {lastName}, \nProduct Ordered: {productName}, \nProduct Price: £{productPrice}, \nQuantity: {productQuantity}, \nTotal: £{totalSpending}\n");
                             Console.WriteLine("Press Any Key To Return");
                             Console.ReadKey();
                             CheckAdminStockPanel(tableName);
@@ -1070,7 +1066,7 @@ namespace NEA_Project
                     Console.WriteLine("enter a valid integer index.");
                 }
             }
-        } // fine but review
+        } // completely fine, don't touch
         public static void CalculateMostExpensiveOrder(string tableName)
         {
             Console.Clear();
@@ -1078,9 +1074,12 @@ namespace NEA_Project
 
             SQLiteCommand fetchOrders = new SQLiteCommand($@"SELECT Customers.CustomerId, Customers.FirstName, Customers.LastName, SUM(Products.Price * ProductsInOrders.Quantity) AS total
             FROM Customers
-            LEFT JOIN Orders ON Customers.CustomerId = Orders.CustomerId
-            LEFT JOIN ProductsInOrders ON Orders.OrderId = ProductsInOrders.OrderId
-            LEFT JOIN Products ON ProductsInOrders.ProductId = Products.ProductId
+            LEFT JOIN Orders 
+            ON Customers.CustomerId = Orders.CustomerId
+            LEFT JOIN ProductsInOrders 
+            ON Orders.OrderId = ProductsInOrders.OrderId
+            LEFT JOIN Products 
+            ON ProductsInOrders.ProductId = Products.ProductId
             GROUP BY Customers.CustomerId, Customers.FirstName, Customers.LastName
             ORDER BY total {orderMethod} LIMIT 3", conn);
 
@@ -1089,24 +1088,24 @@ namespace NEA_Project
 
             while (orderReader.Read())
             {
-                int customerId = orderReader.GetInt32(0);
-                string firstName = orderReader.GetString(1);
-                string lastName = orderReader.GetString(2);
+                int fetchedCustomerId = orderReader.GetInt32(0);
+                string fetchedFirstName = orderReader.GetString(1);
+                string fetchedLastName = orderReader.GetString(2);
                 decimal total = orderReader.GetDecimal(3);
 
-                Console.WriteLine($"The Customer With CustomerId Of: {customerId}, {firstName} {lastName}, has a total spending of £{total}");
+                Console.WriteLine($"The Customer With CustomerId Of: {fetchedCustomerId}, {fetchedFirstName} {fetchedLastName}, has a total spending of £{total}");
             }
 
             Console.WriteLine("\nPress Any Key To Continue");
             Console.ReadKey();
             CheckAdminStockPanel(tableName);
-        } // fine but needs review
+        } // fine
         public static void GetAverageCustomerSpending(string tableName)
         {
-            SQLiteCommand getOrders = new SQLiteCommand($@"SELECT ProductsInOrders.ProductId, AVG(ProductsInOrders.Quantity * Products.Price) AS averageCustomerSpending
-            FROM ProductsInOrders
-            INNER JOIN Products ON ProductsInOrders.ProductId = Products.ProductId ", conn);
-            SQLiteDataReader spendingReader = getOrders.ExecuteReader();
+            SQLiteCommand getCustomerOrders = new SQLiteCommand($@"SELECT ProductsInOrders.ProductId, AVG(ProductsInOrders.Quantity * Products.Price) AS averageCustomerSpending
+            FROM ProductsInOrders INNER JOIN Products 
+            ON ProductsInOrders.ProductId = Products.ProductId ", conn);
+            SQLiteDataReader spendingReader = getCustomerOrders.ExecuteReader();
             Console.Clear();
 
             while (spendingReader.Read())
@@ -1117,32 +1116,32 @@ namespace NEA_Project
             Console.WriteLine("Press any key to continue");
             Console.ReadKey();
             CheckAdminStockPanel(tableName);
-        } //fine
+        } // completely fine, don't touch
         public static void GetAverageQuantityOfItems(string tableName)
         {
             SQLiteCommand getAverageQuantity = new SQLiteCommand($@"SELECT AVG(Quantity) AS averageQuantity FROM ProductsInOrders", conn);
-            SQLiteDataReader quantityReader = getAverageQuantity.ExecuteReader();
+            SQLiteDataReader averageQuantityReader = getAverageQuantity.ExecuteReader();
 
-            while (quantityReader.Read())
+            while (averageQuantityReader.Read())
             {
-                decimal averageQuantity = quantityReader.GetDecimal(0);
+                decimal averageQuantity = averageQuantityReader.GetDecimal(0);
                 Console.WriteLine($"The average quantity of items a customer orders is: {Math.Round(averageQuantity)}");
             }
             Console.WriteLine("Press any key to continue");
             Console.ReadKey();
             CheckAdminStockPanel(tableName);
         }//fine
-        public static void FilterInputtedTables(string tableName, string whichFilter)
+        public static void FilterInputtedTables(string tableName, string whichFilterMethod)
         {
-            string orderMethod = GetOrderMethod();
+            string whichOrderMethod = GetOrderMethod();
             int rowChecker = 0;
 
             Dictionary<string, Dictionary<string, Type>> tableColumnHeaders = GetColumnHeaders();
-            SQLiteCommand getDesiredFilter = new SQLiteCommand($"SELECT * FROM {tableName} ORDER BY {whichFilter} {orderMethod}", conn);
+            SQLiteCommand getDesiredFilter = new SQLiteCommand($"SELECT * FROM {tableName} ORDER BY {whichFilterMethod} {whichOrderMethod}", conn);
             SQLiteDataReader priceReader = getDesiredFilter.ExecuteReader();
             Console.Clear();
 
-            Console.WriteLine($"Here is the sorted {tableName} table in sorted order of {whichFilter} {orderMethod} \n");
+            Console.WriteLine($"Here is the sorted {tableName} table in sorted order of {whichFilterMethod} {whichOrderMethod} \n");
 
             while (priceReader.Read())
             {
@@ -1161,7 +1160,7 @@ namespace NEA_Project
             Console.WriteLine("Items sorted, press any key to continue");
             Console.ReadKey();
             CheckAdminStockPanel(tableName);
-        } //fine
+        } // completely fine, don't touch
         public static string GetOrderMethod()
         {
             Console.Clear();
@@ -1181,7 +1180,7 @@ namespace NEA_Project
                 catch (Exception ex) when (ex is FormatException) { Console.Clear(); Console.WriteLine("Invalid order property inputted"); }
             }
             return orderMethod;
-        } //fine
+        } // completely fine, don't touch
         public static void MainMenu()
         {
             Console.Clear();
@@ -1190,8 +1189,7 @@ namespace NEA_Project
             Console.WriteLine("1. Admin's Page");
             Console.WriteLine("2. Exit");
             MakeLoginDecision();
-        } //fine
+        } // completely fine, don't touch
     }
 }
-
 
