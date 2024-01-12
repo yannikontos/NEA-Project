@@ -15,6 +15,7 @@ using System.Collections;
 using System.Net.Security;
 using System.Runtime.InteropServices;
 using System.Diagnostics;
+using System.Data.SqlTypes;
 
 namespace NEA_Project
 {
@@ -67,7 +68,7 @@ namespace NEA_Project
                 if (clearScreen >= 3) { MainMenu(); }
             }
             Console.ReadKey();
-        } //fine
+        } //fine don't touch
         public static void AdminPage()
         {
             Console.Clear();
@@ -120,7 +121,7 @@ namespace NEA_Project
                 clearScreen++;
                 if (clearScreen >= 3) { AdminPage(); }
             }
-        } //fine
+        } //fine don't touch
         public static void CheckAdminStockPanel(string tableName)
         {
             Console.Clear();
@@ -135,10 +136,9 @@ namespace NEA_Project
 
 
             Dictionary<string, object> columnValues = new Dictionary<string, object>();
-            Dictionary<string, Dictionary<string, Type>> tableColumnHeaders = GetColumnHeaders();
-
+            Dictionary<string, Dictionary<string, Type>> getDatabaseColumnHeaders = GetColumnHeaders();
             Console.WriteLine($"These are the currently listed {tableName} in the database: \n");
-            Dictionary<string, Type> headerMaps = tableColumnHeaders[tableName];
+            Dictionary<string, Type> columnHeadersMapped = getDatabaseColumnHeaders[tableName];
 
 
             if (reader.HasRows)
@@ -147,27 +147,17 @@ namespace NEA_Project
 
                 while (reader.Read())
                 {
-                    foreach (var headers in headerMaps)
+                    foreach (var headers in columnHeadersMapped)
                     {
                         string recordHeader = headers.Key;
                         Type recordType = headers.Value;
 
-                        if (recordType == typeof(int))
-                        {
-                            columnValues[recordHeader] = Convert.ToInt32(reader[recordHeader]);
-                        }
-                        else if (recordType == typeof(string))
-                        {
-                            columnValues[recordHeader] = reader[recordHeader].ToString();
-                        }
-                        else if (recordType == typeof(decimal))
-                        {
-                            columnValues[recordHeader] = Convert.ToDecimal(reader[recordHeader]);
-                        }
+                        if (recordType == typeof(int)) { columnValues[recordHeader] = Convert.ToInt32(reader[recordHeader]); }
+                        else if (recordType == typeof(string)) { columnValues[recordHeader] = reader[recordHeader].ToString(); }
+                        else if (recordType == typeof(decimal)) { columnValues[recordHeader] = Convert.ToDecimal(reader[recordHeader]); }
                         // reader[recordHeader] is the value, i.e. 0, shirt, nice looking shirt, £20.50, 20
                         // headers gives out the [record header name i.e. ProductId, ProductName and the data type i.e. string , int]
                     }
-
 
                     foreach (var value in columnValues)
                     {
@@ -179,7 +169,7 @@ namespace NEA_Project
                         else { Console.WriteLine($"{columnHeader}: {columnValue}"); }
                     }
 
-                    if (headerMaps.Count == columnValues.Count) { Console.WriteLine(); }
+                    if (columnHeadersMapped.Count == columnValues.Count) { Console.WriteLine(); }
                 }
 
                 Console.WriteLine();
@@ -203,7 +193,7 @@ namespace NEA_Project
                         switch (choice)
                         {
                             case 1:
-                                ChooseCRUDDecision(tableName, DoRecordItemsExist, itemId, columnValues, headerMaps, availableTableIds, tablePrimaryKey);
+                                ChooseCRUDDecision(tableName, DoRecordItemsExist, itemId, columnValues, columnHeadersMapped, availableTableIds, tablePrimaryKey);
                                 break;
                             case 2:
                                 ChooseAnalytics(tableName);
@@ -242,7 +232,7 @@ namespace NEA_Project
                         switch (choice)
                         {
                             case 'y':
-                                AddRecordsToTables(DoRecordItemsExist, tableName, itemId, columnValues, headerMaps, tablePrimaryKey);
+                                AddRecordsToTables(DoRecordItemsExist, tableName, itemId, columnValues, columnHeadersMapped, tablePrimaryKey);
                                 break;
                             case 'n':
                                 AdminPage();
@@ -262,50 +252,51 @@ namespace NEA_Project
         } // fine mostly
         public static Dictionary<string, Dictionary<string, Type>> GetColumnHeaders()
         {
-            Dictionary<string, Dictionary<string, Type>> tableColumnHeaders = new Dictionary<string, Dictionary<string, Type>>
+            Dictionary<string, Dictionary<string, Type>> getDatabaseColumnHeaders = new Dictionary<string, Dictionary<string, Type>>
             {
                 {
                     "Products", new Dictionary<string, Type>
                     {
-                        { "ProductId", typeof(int) },
-                        { "ProductName", typeof(string) },
-                        { "Description", typeof(string) },
-                        { "Price", typeof(decimal) },
-                        { "StockQuantity", typeof(int) }
+                        { "ProductId", 0.GetType() },
+                        { "ProductName", "".GetType() },
+                        { "Description", "".GetType() },
+                        { "Price", 0m.GetType() },
+                        { "StockQuantity", 0.GetType() }
                     }
                 },
                 {
                     "Customers", new Dictionary<string, Type>
                     {
-                        { "CustomerId", typeof(int) },
-                        { "FirstName", typeof(string) },
-                        { "LastName", typeof(string) },
-                        { "PhoneNumber", typeof(string) },
-                        { "EmailAddress", typeof(string) }
+                        { "CustomerId", 0.GetType() },
+                        { "FirstName", "".GetType() },
+                        { "LastName", "".GetType() },
+                        { "PhoneNumber", "".GetType() },
+                        { "EmailAddress", "".GetType() }
                     }
                 },
                 {
                     "Orders", new Dictionary<string, Type>
                     {
-                        { "OrderId", typeof(int) },
-                        { "OrderDate", typeof(string) },
-                        { "CustomerId", typeof(int) }
+                        { "OrderId", 0.GetType() },
+                        { "OrderDate", "".GetType() },
+                        { "CustomerId", 0.GetType() }
                     }
                 },
                 {
                     "ProductsInOrders", new Dictionary<string, Type>
                     {
-                        { "ProductInOrderId", typeof(int) },
-                        { "ProductId", typeof(int) },
-                        { "OrderId", typeof(int) },
-                        { "Quantity", typeof(int) }
+                        { "ProductInOrderId", 0.GetType() },
+                        { "ProductId", 0.GetType() },
+                        { "OrderId", 0.GetType() },
+                        { "Quantity", 0.GetType() }
                     }
                 }
             };
+            // initialised a nested dictionary with the keys of it being the column headers and also the values of it inferring their types to the contained dictionary
 
-            return tableColumnHeaders;
-        } // fine
-        public static void ChooseCRUDDecision(string tableName, bool DoRecordItemsExist, int itemId, Dictionary<string, object> columnValues, Dictionary<string, Type> headerMaps, List<int> availableTableIds, string tablePrimaryKey)
+            return getDatabaseColumnHeaders;
+        } // fine don't touch
+        public static void ChooseCRUDDecision(string tableName, bool DoRecordItemsExist, int itemId, Dictionary<string, object> columnValues, Dictionary<string, Type> columnHeadersMapped, List<int> availableTableIds, string tablePrimaryKey)
         {
             int clearScreen = 0;
             bool decision = false;
@@ -329,7 +320,7 @@ namespace NEA_Project
                     switch (choice)
                     {
                         case 1:
-                            AddRecordsToTables(DoRecordItemsExist, tableName, itemId, columnValues, headerMaps, tablePrimaryKey);
+                            AddRecordsToTables(DoRecordItemsExist, tableName, itemId, columnValues, columnHeadersMapped, tablePrimaryKey);
                             break;
                         case 2:
                             UpdateRecordsFromTables(tableName, columnValues, tablePrimaryKey);
@@ -347,9 +338,9 @@ namespace NEA_Project
                     Console.WriteLine("Invalid choice. Please enter either numbers within the range of 1-4");
                 }
                 clearScreen++;
-                if (clearScreen >= 3) { ChooseCRUDDecision(tableName, DoRecordItemsExist, itemId, columnValues, headerMaps, availableTableIds, tablePrimaryKey); }
+                if (clearScreen >= 3) { ChooseCRUDDecision(tableName, DoRecordItemsExist, itemId, columnValues, columnHeadersMapped, availableTableIds, tablePrimaryKey); }
             }
-        } //fine
+        } //fine don't touch
         public static void ChooseAnalytics(string tableName)
         {
             Console.Clear();
@@ -399,7 +390,8 @@ namespace NEA_Project
                 clearScreen++;
                 if (clearScreen >= 3) { ChooseAnalytics(tableName); }
             }
-        } //fine
+        } //fine don't touch
+
         private delegate void ExecuteFilteringFunctions();
         public static void FilterTable(string tableName)
         {
@@ -417,7 +409,8 @@ namespace NEA_Project
                     {
                         {"1. Filter by Price in ascending / descending order"},
                         {"2. Filter by ProductName in alphabetical order ascending / descending"},
-                        {"3. Exit"},
+                        {"3. Filter by StockQuantity in ascending / descending order"},
+                        {"4. Exit"},
                     }
                 },
                 {
@@ -450,6 +443,7 @@ namespace NEA_Project
             {
                 {"1Products", () => FilterInputtedTables(tableName, "Price") },
                 {"2Products", () => FilterInputtedTables(tableName, "ProductName") },
+                {"3Products", () => FilterInputtedTables(tableName, "StockQuantity") },
                 {"1Customers", () => FilterInputtedTables(tableName, "FirstName") },
                 {"2Customers", () => FilterInputtedTables(tableName, "LastName") },
                 {"1Orders", () => FilterInputtedTables(tableName, "OrderDate") },
@@ -485,11 +479,10 @@ namespace NEA_Project
                 if (clearScreen >= 3) { FilterTable(tableName); }
             }
         } // mostly fine
-        public static void AddRecordsToTables(bool DoRecordItemsExist, string tableName, int itemId, Dictionary<string, object> columnValues, Dictionary<string, Type> headerMaps, string tablePrimaryKey)
+        public static void AddRecordsToTables(bool DoRecordItemsExist, string tableName, int itemId, Dictionary<string, object> columnValues, Dictionary<string, Type> columnHeadersMapped, string tablePrimaryKey)
         {
             Console.Clear();
             bool decision = false;
-            Dictionary<string, object> NoRecordItems = new Dictionary<string, object>();
             Dictionary<string, object> parameters = new Dictionary<string, object>();
             List<int> customerIds = new List<int>();
             List<int> productIds = new List<int>();
@@ -516,13 +509,14 @@ namespace NEA_Project
 
             if (!DoRecordItemsExist)
             {
-                foreach (var header in headerMaps)
+                foreach (var header in columnHeadersMapped)
                 {
+                    string columnHeader = header.Key;
                     Type typeCheck = header.Value;
 
-                    if (typeCheck == typeof(int)) { columnValues.Add(header.Key, 0); }
-                    else if (typeCheck == typeof(decimal)) { columnValues.Add(header.Key, 0m); }
-                    else { columnValues.Add(header.Key, ""); }
+                    if (typeCheck == typeof(int)) { columnValues.Add(columnHeader, 0); }
+                    else if (typeCheck == typeof(decimal)) { columnValues.Add(columnHeader, 0m); }
+                    else { columnValues.Add(columnHeader, ""); }
                 }
             }
 
@@ -533,14 +527,13 @@ namespace NEA_Project
                     if (tableName == "Orders" || tableName == "ProductsInOrders") { ValidateKeys(tableName, customerIds, productIds, orderIds); }
                     AddValuesToQuery(columnValues, itemId, parameters, tableName, customerIds, productIds, orderIds);
 
-                    SQLiteCommand createRecords = new SQLiteCommand($"INSERT INTO {tableName} ({string.Join(", ", parameters.Keys)}) VALUES ({string.Join(", ", parameters.Keys.Select(key => "@" + key))})", conn);
+                    string headerList = String.Join(", ", parameters.Keys);
+                    string headerParameters = String.Join(", :", parameters.Keys);
 
-                    foreach (var param in parameters)
-                    {
-                        createRecords.Parameters.AddWithValue("@" + param.Key, param.Value);
-                    }
+                    SQLiteCommand createRecords = new SQLiteCommand($"INSERT INTO {tableName} ({headerList}) VALUES (:{headerParameters})", conn);
+                    foreach (var param in parameters) { createRecords.Parameters.AddWithValue($":{param.Key}", param.Value); };
+
                     createRecords.ExecuteNonQuery();
-
 
                     Console.WriteLine();
                     Console.WriteLine("Item successfully added to the database");
@@ -556,7 +549,7 @@ namespace NEA_Project
                     parameters.Clear();
                 }
             }
-        } // mostly fine
+        } // fine don't touch
         public static void ValidateKeys(string tableName, List<int> customerIds, List<int> productIds, List<int> orderIds)
         {
             SQLiteCommand sqlCustomers = new SQLiteCommand($"SELECT * FROM Customers", conn);
@@ -579,7 +572,6 @@ namespace NEA_Project
             {
                 outputText += errorOutputs[tableName];
 
-
                 Console.WriteLine($"The {outputText} table has no entries; in order to add entries to the {tableName} table you will need to input data into {outputText} \nPress any key to return to the menu");
                 Console.ReadKey();
                 CheckAdminStockPanel(tableName);
@@ -599,7 +591,7 @@ namespace NEA_Project
                 while (fetchProductId.Read()) { productIds.Add(Convert.ToInt32(fetchProductId["ProductId"])); }
                 while (fetchOrderId.Read()) { orderIds.Add(Convert.ToInt32(fetchOrderId["OrderId"])); }
             }
-        }//fine
+        }//fine don't touch
         public static Dictionary<string, object> AddValuesToQuery(Dictionary<string, object> columnValues, int itemId, Dictionary<string, object> parameters, string tableName, List<int> customerIds, List<int> productIds, List<int> orderIds)
         {
             string whichFunction = "AddValues";
@@ -635,7 +627,7 @@ namespace NEA_Project
                             ValidateSecondaryKeys(tableName, productIds, orderIds, parameters, output);
                             break;
                         case "QuantityProductsInOrders":
-                            ValidateQuantity(parameters, value, whichFunction, null);
+                            ValidateQuantity(parameters, value, whichFunction, null, tableName);
                             break;
                         default:
                             GetUserInputForColumnHeaders(output, parameters, columnValue);
@@ -644,7 +636,7 @@ namespace NEA_Project
                 }
             }
             return parameters;
-        } // fine
+        } // fine don't touch
         public static string ValidateEmailAddress(Dictionary<string, object> parameters, KeyValuePair<string, object> value, string whichFunction, SQLiteCommand updateCommand)
         {
             string userInput = "";
@@ -714,7 +706,7 @@ namespace NEA_Project
             }
 
 
-            if (!isAssigned) //fix this perhaps
+            if (!isAssigned)
             {
                 while (!isAssigned)
                 {
@@ -738,7 +730,7 @@ namespace NEA_Project
                 CheckAdminStockPanel(tableName);
             }
             return parameters;
-        } // fine
+        }  // fine dont touch
         public static Dictionary<string, object> ValidateSecondaryKeys(string tableName, List<int> productIds, List<int> orderIds, Dictionary<string, object> parameters, string output)
         {
             bool isAssigned = false;
@@ -815,8 +807,8 @@ namespace NEA_Project
                 Console.ReadKey();
                 CheckAdminStockPanel(tableName);
             }
-            return parameters; // fine mostly
-        }
+            return parameters;
+        }// fine dont touch
         public static int ValidateQuantity(Dictionary<string, object> parameters, KeyValuePair<string, object> value, string whichFunction, SQLiteCommand updateCommand, string tableName)
         {
             bool isAssigned = false;
@@ -853,7 +845,7 @@ namespace NEA_Project
                 else if (whichFunction == "AddValues") { Console.Clear(); Console.WriteLine("That amount of stock is not available, check if the product is in stock if needed"); }
                 else
                 {
-                    updateCommand = new SQLiteCommand($"UPDATE {tableName} SET {value.Value} = ", conn);
+                    updateCommand = new SQLiteCommand($"UPDATE {tableName} SET @{value.Value} = {inputtedQuantity}", conn);
 
                     updateCommand.Parameters.AddWithValue($"@{value.Value}", inputtedQuantity);
                     updateCommand.CommandText += $"{value.Value} = @{value.Value}, ";
@@ -1066,7 +1058,7 @@ namespace NEA_Project
                     Console.WriteLine("enter a valid integer index.");
                 }
             }
-        } // completely fine, don't touch
+        } //  touch
         public static void CalculateMostExpensiveOrder(string tableName)
         {
             Console.Clear();
@@ -1099,11 +1091,12 @@ namespace NEA_Project
             Console.WriteLine("\nPress Any Key To Continue");
             Console.ReadKey();
             CheckAdminStockPanel(tableName);
-        } // fine
+        } // touch
         public static void GetAverageCustomerSpending(string tableName)
         {
             SQLiteCommand getCustomerOrders = new SQLiteCommand($@"SELECT ProductsInOrders.ProductId, AVG(ProductsInOrders.Quantity * Products.Price) AS averageCustomerSpending
-            FROM ProductsInOrders INNER JOIN Products 
+            FROM ProductsInOrders 
+            INNER JOIN Products 
             ON ProductsInOrders.ProductId = Products.ProductId ", conn);
             SQLiteDataReader spendingReader = getCustomerOrders.ExecuteReader();
             Console.Clear();
@@ -1116,7 +1109,7 @@ namespace NEA_Project
             Console.WriteLine("Press any key to continue");
             Console.ReadKey();
             CheckAdminStockPanel(tableName);
-        } // completely fine, don't touch
+        } // maybe look
         public static void GetAverageQuantityOfItems(string tableName)
         {
             SQLiteCommand getAverageQuantity = new SQLiteCommand($@"SELECT AVG(Quantity) AS averageQuantity FROM ProductsInOrders", conn);
@@ -1130,13 +1123,13 @@ namespace NEA_Project
             Console.WriteLine("Press any key to continue");
             Console.ReadKey();
             CheckAdminStockPanel(tableName);
-        }//fine
+        }//fine don't touch
         public static void FilterInputtedTables(string tableName, string whichFilterMethod)
         {
             string whichOrderMethod = GetOrderMethod();
             int rowChecker = 0;
 
-            Dictionary<string, Dictionary<string, Type>> tableColumnHeaders = GetColumnHeaders();
+            Dictionary<string, Dictionary<string, Type>> getDatabaseColumnHeaders = GetColumnHeaders();
             SQLiteCommand getDesiredFilter = new SQLiteCommand($"SELECT * FROM {tableName} ORDER BY {whichFilterMethod} {whichOrderMethod}", conn);
             SQLiteDataReader priceReader = getDesiredFilter.ExecuteReader();
             Console.Clear();
@@ -1145,7 +1138,7 @@ namespace NEA_Project
 
             while (priceReader.Read())
             {
-                foreach (var header in tableColumnHeaders[tableName])
+                foreach (var header in getDatabaseColumnHeaders[tableName])
                 {
                     string columnHeader = header.Key;
 
@@ -1153,7 +1146,7 @@ namespace NEA_Project
                     else { Console.WriteLine($"{columnHeader}: {priceReader[header.Key]}"); }
 
                     rowChecker++;
-                    if (rowChecker == tableColumnHeaders[tableName].Count) { Console.WriteLine(); rowChecker = 0; }
+                    if (rowChecker == getDatabaseColumnHeaders[tableName].Count) { Console.WriteLine(); rowChecker = 0; }
                 }
             }
 
