@@ -147,14 +147,16 @@ namespace NEA_Project
 
                 while (reader.Read())
                 {
+                    columnValues.Clear();
+
                     foreach (var headers in columnHeadersMapped)
                     {
                         string recordHeader = headers.Key;
                         Type recordType = headers.Value;
 
-                        if (recordType == typeof(int)) { columnValues[recordHeader] = Convert.ToInt32(reader[recordHeader]); }
-                        else if (recordType == typeof(string)) { columnValues[recordHeader] = reader[recordHeader].ToString(); }
-                        else if (recordType == typeof(decimal)) { columnValues[recordHeader] = Convert.ToDecimal(reader[recordHeader]); }
+                        if (recordType == typeof(int)) { columnValues.Add(recordHeader, Convert.ToInt32(reader[recordHeader])); }
+                        else if (recordType == typeof(string)) { columnValues.Add(recordHeader, reader[recordHeader].ToString()); }
+                        else if (recordType == typeof(decimal)) { columnValues.Add(recordHeader, Convert.ToDecimal(reader[recordHeader])); }
                         // reader[recordHeader] is the value, i.e. 0, shirt, nice looking shirt, £20.50, 20
                         // headers gives out the [record header name i.e. ProductId, ProductName and the data type i.e. string , int]
                     }
@@ -164,9 +166,10 @@ namespace NEA_Project
                         string columnHeader = value.Key;
                         object columnValue = value.Value;
 
-                        if (columnHeader == "ProductId" && tableName == "Products" || columnHeader == "OrderId" && tableName == "Orders" || columnHeader == "CustomerId" && tableName == "Customers" || columnHeader == "ProductInOrderId" && tableName == "ProductsInOrders") { tablePrimaryKey = columnHeader; itemId = (int)columnValue; availableTableIds.Add(itemId); }
+                        if (columnHeader == "ProductId" && tableName == "Products" || columnHeader == "OrderId" && tableName == "Orders" || columnHeader == "CustomerId" && tableName == "Customers" || columnHeader == "ProductInOrderId" && tableName == "ProductsInOrders") { tablePrimaryKey = columnHeader; itemId = (int) columnValue; availableTableIds.Add(itemId); }
                         if (columnHeader == "Price") { Console.WriteLine($"{columnHeader}: £{columnValue}"); }
                         else { Console.WriteLine($"{columnHeader}: {columnValue}"); }
+
                     }
 
                     if (columnHeadersMapped.Count == columnValues.Count) { Console.WriteLine(); }
@@ -249,7 +252,7 @@ namespace NEA_Project
                     if (clearScreen >= 3) { CheckAdminStockPanel(tableName); }
                 }
             }
-        } // fine mostly
+        } // fine don't touch mostly
         public static Dictionary<string, Dictionary<string, Type>> GetColumnHeaders()
         {
             Dictionary<string, Dictionary<string, Type>> getDatabaseColumnHeaders = new Dictionary<string, Dictionary<string, Type>>
@@ -348,7 +351,7 @@ namespace NEA_Project
             int clearScreen = 0;
 
             Console.WriteLine("Would you like to: ");
-            Console.WriteLine("1. Get customer order details with inputted CustomerId");
+            Console.WriteLine("1. Get customer order details with inputted OrderId");
             Console.WriteLine("2. Get most expensive customer orders (ascending / descending)");
             Console.WriteLine("3. Get the average customer order expenditure");
             Console.WriteLine("4. Get the average quantity of items ordered");
@@ -817,10 +820,7 @@ namespace NEA_Project
             int availableQuantity = 0;
             // SQLiteCommand updateCommand = new SQLiteCommand($"UPDATE {tableName} SET ", conn);
 
-            foreach (var item in parameters)
-            {
-                if (item.Key == "ProductId") { getProductId = Convert.ToInt32(item.Value); }
-            }
+            foreach (var item in parameters) { if (item.Key == "ProductId") { getProductId = Convert.ToInt32(item.Value); } }
 
             SQLiteCommand sqlStockQuantity = new SQLiteCommand($"SELECT StockQuantity FROM Products WHERE ProductId = {getProductId}", conn);
             SQLiteDataReader stockQuantity = sqlStockQuantity.ExecuteReader();
@@ -835,7 +835,7 @@ namespace NEA_Project
                 inputtedQuantity = int.Parse(Console.ReadLine());
 
 
-                if (inputtedQuantity <= availableQuantity && inputtedQuantity != 0 && whichFunction == "AddValues")
+                if (inputtedQuantity <= availableQuantity && inputtedQuantity >= 1 && whichFunction == "AddValues")
                 {
                     parameters.Add("Quantity", inputtedQuantity);
                     SQLiteCommand updateStockAvailability = new SQLiteCommand($"UPDATE Products SET StockQuantity = {availableQuantity - inputtedQuantity} WHERE ProductId = {getProductId}", conn);
@@ -845,12 +845,13 @@ namespace NEA_Project
                 else if (whichFunction == "AddValues") { Console.Clear(); Console.WriteLine("That amount of stock is not available, check if the product is in stock if needed"); }
                 else
                 {
-                    updateCommand = new SQLiteCommand($"UPDATE {tableName} SET @{value.Value} = {inputtedQuantity}", conn);
+                    Console.WriteLine(whichFunction);
+                    //updateCommand = new SQLiteCommand($"UPDATE {tableName} SET @{value.Value} = {inputtedQuantity}", conn);
 
                     updateCommand.Parameters.AddWithValue($"@{value.Value}", inputtedQuantity);
                     updateCommand.CommandText += $"{value.Value} = @{value.Value}, ";
                     isAssigned = true;
-                }
+                } // when in an update command, 
             }
             return inputtedQuantity; //fix (working on this)
         }
@@ -1001,10 +1002,7 @@ namespace NEA_Project
             int userInputId;
             bool decision = false;
 
-            while (sqlOrderReader.Read())
-            {
-                availableOrderIds.Add(Convert.ToInt32(sqlOrderReader["OrderId"]));
-            }
+            while (sqlOrderReader.Read()) { availableOrderIds.Add(Convert.ToInt32(sqlOrderReader["OrderId"])); }
 
             while (!decision)
             {
@@ -1142,8 +1140,8 @@ namespace NEA_Project
                 {
                     string columnHeader = header.Key;
 
-                    if (columnHeader == "Price") { Console.WriteLine($"{columnHeader}: £{priceReader[header.Key]}"); }
-                    else { Console.WriteLine($"{columnHeader}: {priceReader[header.Key]}"); }
+                    if (columnHeader == "Price") { Console.WriteLine($"{columnHeader}: £{priceReader[columnHeader]}"); }
+                    else { Console.WriteLine($"{columnHeader}: {priceReader[columnHeader]}"); }
 
                     rowChecker++;
                     if (rowChecker == getDatabaseColumnHeaders[tableName].Count) { Console.WriteLine(); rowChecker = 0; }
