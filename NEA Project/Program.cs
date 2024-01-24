@@ -166,7 +166,7 @@ namespace NEA_Project
                         string columnHeader = value.Key;
                         object columnValue = value.Value;
 
-                        if (columnHeader == "ProductId" && tableName == "Products" || columnHeader == "OrderId" && tableName == "Orders" || columnHeader == "CustomerId" && tableName == "Customers" || columnHeader == "ProductInOrderId" && tableName == "ProductsInOrders") { tablePrimaryKey = columnHeader; itemId = (int) columnValue; availableTableIds.Add(itemId); }
+                        if (columnHeader == "ProductId" && tableName == "Products" || columnHeader == "OrderId" && tableName == "Orders" || columnHeader == "CustomerId" && tableName == "Customers" || columnHeader == "ProductInOrderId" && tableName == "ProductsInOrders") { tablePrimaryKey = columnHeader; itemId = (int)columnValue; availableTableIds.Add(itemId); }
                         if (columnHeader == "Price") { Console.WriteLine($"{columnHeader}: £{columnValue}"); }
                         else { Console.WriteLine($"{columnHeader}: {columnValue}"); }
 
@@ -394,7 +394,6 @@ namespace NEA_Project
                 if (clearScreen >= 3) { ChooseAnalytics(tableName); }
             }
         } //fine don't touch
-
         private delegate void ExecuteFilteringFunctions();
         public static void FilterTable(string tableName)
         {
@@ -621,7 +620,7 @@ namespace NEA_Project
                             ValidateEmailAddress(parameters, value, whichFunction, null);
                             break;
                         case "CustomerIdOrders":
-                            ValidateCustomerId(tableName, customerIds, parameters);
+                            ValidateCustomerId(tableName, customerIds, parameters, whichFunction, 0);
                             break;
                         case "ProductIdProductsInOrders":
                             ValidateSecondaryKeys(tableName, productIds, orderIds, parameters, output);
@@ -695,19 +694,17 @@ namespace NEA_Project
             }
             return userInput;
         } // needs rework
-        public static Dictionary<string, object> ValidateCustomerId(string tableName, List<int> customerIds, Dictionary<string, object> parameters)
+        public static Dictionary<string, object> ValidateCustomerId(string tableName, List<int> customerIds, Dictionary<string, object> parameters, string chooseValidationMethod, int orderId)
         {
             bool isAssigned = false;
             SQLiteCommand sqlOrders = new SQLiteCommand($"SELECT * FROM Orders", conn);
             SQLiteDataReader orderReader = sqlOrders.ExecuteReader();
             List<int> usedCustomerIds = new List<int>();
 
-
             while (orderReader.Read())
             {
                 usedCustomerIds.Add(Convert.ToInt32(orderReader["CustomerId"]));
             }
-
 
             if (!isAssigned)
             {
@@ -716,8 +713,15 @@ namespace NEA_Project
                     Console.WriteLine("Assign a customerId to this order");
                     int userInputtedCustomerId = int.Parse(Console.ReadLine());
 
-
                     if (!customerIds.Contains(userInputtedCustomerId)) { Console.Clear(); Console.WriteLine("The number inputted is not an available CustomerId"); }
+                    else if (chooseValidationMethod == "Update")
+                    {
+                        SQLiteCommand updateCustomerId = new SQLiteCommand($@"UPDATE {tableName} 
+                        SET CustomerId = {userInputtedCustomerId}
+                        WHERE OrderId = {orderId};", conn);
+                        updateCustomerId.ExecuteNonQuery();
+                        isAssigned = true;
+                    }
                     else
                     {
                         parameters.Add("CustomerId", userInputtedCustomerId);
@@ -828,7 +832,6 @@ namespace NEA_Project
 
             while (stockQuantity.Read()) { availableQuantity = Convert.ToInt32(stockQuantity["stockQuantity"]); }
 
-
             while (!isAssigned && value.Key == "Quantity")
             {
                 Console.WriteLine("Enter your desired Quantity");
@@ -874,14 +877,19 @@ namespace NEA_Project
             Console.Clear();
 
             bool isValidInt = false;
+            bool validateInputs = false;
             int userInputtedId = 0;
             List<int> validIds = new List<int>();
+            List<int> customerIds = new List<int>();
             string whichFunction = "UpdateRecords";
 
+            SQLiteCommand sqlCustomers = new SQLiteCommand($"SELECT * FROM Customers", conn);
             SQLiteCommand getvalidIds = new SQLiteCommand($"SELECT {tablePrimaryKey} FROM {tableName}", conn);
+            SQLiteDataReader getCustomers = sqlCustomers.ExecuteReader();
             SQLiteDataReader invalidIdReader = getvalidIds.ExecuteReader();
 
             while (invalidIdReader.Read()) { validIds.Add(Convert.ToInt32(invalidIdReader[tablePrimaryKey])); }
+            while (getCustomers.Read()) { customerIds.Add(Convert.ToInt32(getCustomers["CustomerId"])); }
 
             while (!isValidInt)
             {
@@ -897,48 +905,57 @@ namespace NEA_Project
 
             SQLiteCommand updateCommand = new SQLiteCommand($"UPDATE {tableName} SET ", conn);
 
-            foreach (var values in columnValues)
+            while (!validateInputs)
             {
-                string columnHeaders = values.Key.ToString();
-                object columnValue = values.Value;
-
-                if (columnHeaders == tablePrimaryKey) { continue; }
-
-                if (columnHeaders == "OrderDate")
+                foreach (var values in columnValues)
                 {
-                    Console.WriteLine("enter your desired date: ");
-                    DateTime date = DateTime.Parse(Console.ReadLine());
-                    updateCommand.Parameters.AddWithValue($"@{columnHeaders}", date);
-                    updateCommand.CommandText += $"{columnHeaders} = @{columnHeaders}, ";
-                }
-                else if (columnHeaders == "PhoneNumber") { ValidatePhoneNumber(columnValues, values, whichFunction, updateCommand); }
-                else if (columnHeaders == "EmailAddress") { ValidateEmailAddress(columnValues, values, whichFunction, updateCommand); }
-                else if (columnHeaders == "Quantity" && tableName == "ProductsInOrders") { ValidateQuantity(columnValues, values, whichFunction, updateCommand, tableName); }
-                else
-                {
-                    Console.WriteLine($"Enter your desired {columnHeaders}:");
-                    string input = Console.ReadLine();
-                    decimal validDecimal = 0;
-                    bool containsAnInt = input.Any(char.IsDigit);
-                    bool isInt = input.All(char.IsDigit);
-                    bool isDecimal = decimal.TryParse(input, out validDecimal);
+                    string columnHeaders = values.Key.ToString();
+                    object columnValue = values.Value;
 
-                    if (containsAnInt && columnValue.GetType() == typeof(string) || columnValue.GetType() == typeof(decimal) && !isDecimal || columnValue.GetType() == typeof(int) && !isInt || input == "")
+                    if (columnHeaders == tablePrimaryKey) { continue; }
+
+                    // try 
+                    // {
+                    if (columnHeaders == "OrderDate")
                     {
-                        Console.Clear();
-                        Console.WriteLine("Incorrect Input, please try again");
-                        UpdateRecordsFromTables(tableName, columnValues, tablePrimaryKey);
-                    }
+                        Console.WriteLine("enter your desired date: ");
+                        string date = Console.ReadLine();
+                        // this type conversion is necessary so that date can be plugged into the update command properly
 
-                    updateCommand.Parameters.AddWithValue($"@{columnHeaders}", input);
-                    updateCommand.CommandText += $"{columnHeaders} = @{columnHeaders}, ";
+                        SQLiteCommand updateOrderDate = new SQLiteCommand($@"UPDATE {tableName} 
+                            SET {columnHeaders} = '{date}'
+                            WHERE OrderId = {userInputtedId};", conn);
+                        updateOrderDate.ExecuteNonQuery();
+                        // add an individual separate command here to update it individually
+                    }
+                    else if (columnHeaders == "PhoneNumber") { ValidatePhoneNumber(columnValues, values, whichFunction, updateCommand); }
+                    else if (columnHeaders == "EmailAddress") { ValidateEmailAddress(columnValues, values, whichFunction, updateCommand); }
+                    else if (columnHeaders == "Quantity" && tableName == "ProductsInOrders") { ValidateQuantity(columnValues, values, whichFunction, updateCommand, tableName); }
+                    else if (columnHeaders == "CustomerId" && tableName == "Orders") { ValidateCustomerId(tableName, customerIds, null, "Update", userInputtedId); }
+                    else
+                    {
+                        Console.WriteLine($"Enter your desired {columnHeaders}:"); // edit this when coming back ------------------------ fix the date registration as its being caught as a format exception
+                        string input = Console.ReadLine();
+                        decimal validDecimal = 0;
+                        bool containsAnInt = input.Any(char.IsDigit);
+                        bool isInt = input.All(char.IsDigit);
+                        bool isDecimal = decimal.TryParse(input, out validDecimal);
+
+                        if (containsAnInt && columnValue.GetType() == typeof(string) || columnValue.GetType() == typeof(decimal) && !isDecimal || columnValue.GetType() == typeof(int) && !isInt || input == "") { UpdateRecordsFromTables(tableName, columnValues, tablePrimaryKey); }
+
+                        updateCommand.Parameters.AddWithValue($"@{columnHeaders}", input);
+                        updateCommand.CommandText += $"{columnHeaders} = @{columnHeaders}, ";
+                    }
+                    // }
+                    // catch(Exception ex) when (ex is FormatException || ex is OverflowException) { UpdateRecordsFromTables(tableName, columnValues, tablePrimaryKey); }
                 }
+                validateInputs = true;
             }
 
-            updateCommand.CommandText = updateCommand.CommandText.TrimEnd(',', ' ') + $" WHERE {tablePrimaryKey} = @{tablePrimaryKey}";
-            updateCommand.Parameters.AddWithValue($"@{tablePrimaryKey}", userInputtedId);
+            // updateCommand.CommandText = updateCommand.CommandText.TrimEnd(',', ' ') + $" WHERE {tablePrimaryKey} = @{tablePrimaryKey}";
+            // updateCommand.Parameters.AddWithValue($"@{tablePrimaryKey}", userInputtedId);
 
-            updateCommand.ExecuteNonQuery();
+            // updateCommand.ExecuteNonQuery();
 
             Console.WriteLine("Item updated, press any key to continue");
             Console.ReadKey();
