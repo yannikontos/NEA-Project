@@ -597,13 +597,14 @@ namespace NEA_Project
         public static Dictionary<string, object> AddValuesToQuery(Dictionary<string, object> columnValues, int itemId, Dictionary<string, object> parameters, string tableName, List<int> customerIds, List<int> productIds, List<int> orderIds)
         {
             string whichFunction = "AddValues";
+            string tablePrimaryKey = "";
 
             foreach (var value in columnValues)
             {
                 string output = value.Key.ToString();
                 object columnValue = value.Value;
 
-                if (output == "ProductId" && tableName == "Products" || output == "OrderId" && tableName == "Orders" || output == "CustomerId" && tableName == "Customers" || output == "ProductInOrderId" && tableName == "ProductsInOrders") { Console.WriteLine($"{output}: {itemId}"); parameters.Add(output, itemId); }
+                if (output == "ProductId" && tableName == "Products" || output == "OrderId" && tableName == "Orders" || output == "CustomerId" && tableName == "Customers" || output == "ProductInOrderId" && tableName == "ProductsInOrders") { Console.WriteLine($"{output}: {itemId}"); parameters.Add(output, itemId); tablePrimaryKey = output; }
                 else
                 {
                     switch (output + tableName)
@@ -614,7 +615,7 @@ namespace NEA_Project
                             parameters.Add(output, date);
                             break;
                         case "PhoneNumberCustomers":
-                            ValidatePhoneNumber(parameters, value, whichFunction, null);
+                            ValidatePhoneNumber(parameters, value, whichFunction, tableName, tablePrimaryKey, itemId);
                             break;
                         case "EmailAddressCustomers":
                             ValidateEmailAddress(parameters, value, whichFunction, null);
@@ -667,7 +668,7 @@ namespace NEA_Project
 
             return userInput;
         } // needs rework
-        public static string ValidatePhoneNumber(Dictionary<string, object> parameters, KeyValuePair<string, object> value, string whichFunction, SQLiteCommand updateCommand)
+        public static string ValidatePhoneNumber(Dictionary<string, object> parameters, KeyValuePair<string, object> value, string whichFunction, string tableName, string tablePrimaryKey, int primaryKeyValue)
         {
             string userInput = "";
             string phonePattern = @"\s*(?:\+?(\d{1,3}))?([-. (]*(\d{3})[-. )]*)?((\d{3})[-. ]*(\d{2,4})(?:[-.x ]*(\d+))?)\s*";
@@ -681,11 +682,13 @@ namespace NEA_Project
                     userInput = Console.ReadLine();
                     bool isMatch = Regex.IsMatch(userInput, phonePattern);
 
-                    if (whichFunction == "AddValues" && isMatch) { parameters[value.Key] = userInput; patternMatched = true; }
+                    if (whichFunction == "AddValues" && isMatch) { parameters[value.Key] = userInput; patternMatched = true; } // fix the parameters add 
                     else if (whichFunction == "UpdateRecords" && isMatch)
                     {
-                        updateCommand.Parameters.AddWithValue($"@{value.Key}", userInput);
-                        updateCommand.CommandText += $"{value.Key} = @{value.Key}, ";
+                        SQLiteCommand updatePhoneNumber = new SQLiteCommand($@"UPDATE {tableName}
+                        SET PhoneNumber = '{userInput}'
+                        WHERE {tablePrimaryKey} = {primaryKeyValue}", conn);
+                        updatePhoneNumber.ExecuteNonQuery();
                         patternMatched = true;
                     }
                     else { Console.Clear(); throw new FormatException(); }
@@ -914,48 +917,47 @@ namespace NEA_Project
 
                     if (columnHeaders == tablePrimaryKey) { continue; }
 
-                    // try 
-                    // {
-                    if (columnHeaders == "OrderDate")
+                    try
                     {
-                        Console.WriteLine("enter your desired date: ");
-                        string date = Console.ReadLine();
-                        // this type conversion is necessary so that date can be plugged into the update command properly
+                        if (columnHeaders == "OrderDate")
+                        {
+                            Console.WriteLine("enter your desired date: (format of: mm/dd/yyyy)");
+                            DateTime date = DateTime.Parse(Console.ReadLine());
+                            string formattedDate = date.ToString("MM/dd/yyyy");
+                            // this type conversion is necessary so that date can be plugged into the update command properly, perhaps need to reference this
 
-                        SQLiteCommand updateOrderDate = new SQLiteCommand($@"UPDATE {tableName} 
-                            SET {columnHeaders} = '{date}'
+                            SQLiteCommand updateOrderDate = new SQLiteCommand($@"UPDATE {tableName} 
+                            SET {columnHeaders} = '{formattedDate}'
                             WHERE OrderId = {userInputtedId};", conn);
-                        updateOrderDate.ExecuteNonQuery();
-                        // add an individual separate command here to update it individually
-                    }
-                    else if (columnHeaders == "PhoneNumber") { ValidatePhoneNumber(columnValues, values, whichFunction, updateCommand); }
-                    else if (columnHeaders == "EmailAddress") { ValidateEmailAddress(columnValues, values, whichFunction, updateCommand); }
-                    else if (columnHeaders == "Quantity" && tableName == "ProductsInOrders") { ValidateQuantity(columnValues, values, whichFunction, updateCommand, tableName); }
-                    else if (columnHeaders == "CustomerId" && tableName == "Orders") { ValidateCustomerId(tableName, customerIds, null, "Update", userInputtedId); }
-                    else
-                    {
-                        Console.WriteLine($"Enter your desired {columnHeaders}:"); // edit this when coming back ------------------------ fix the date registration as its being caught as a format exception
-                        string input = Console.ReadLine();
-                        decimal validDecimal = 0;
-                        bool containsAnInt = input.Any(char.IsDigit);
-                        bool isInt = input.All(char.IsDigit);
-                        bool isDecimal = decimal.TryParse(input, out validDecimal);
+                            updateOrderDate.ExecuteNonQuery();
+                            // add an individual separate command here to update it individually
+                        }
+                        else if (columnHeaders == "PhoneNumber") { ValidatePhoneNumber(columnValues, values, whichFunction, tableName, tablePrimaryKey, userInputtedId); }
+                        else if (columnHeaders == "EmailAddress") { ValidateEmailAddress(columnValues, values, whichFunction, updateCommand); }
+                        else if (columnHeaders == "Quantity" && tableName == "ProductsInOrders") { ValidateQuantity(columnValues, values, whichFunction, updateCommand, tableName); }
+                        else if (columnHeaders == "CustomerId" && tableName == "Orders") { ValidateCustomerId(tableName, customerIds, null, "Update", userInputtedId); }
+                        else
+                        {
+                            Console.WriteLine($"Enter your desired {columnHeaders}:"); // edit this when coming back ------------------------ fix the date registration as its being caught as a format exception, add each sqlCommand to each function 
+                            string input = Console.ReadLine();
+                            decimal validDecimal = 0;
+                            bool containsAnInt = input.Any(char.IsDigit);
+                            bool isInt = input.All(char.IsDigit);
+                            bool isDecimal = decimal.TryParse(input, out validDecimal);
 
-                        if (containsAnInt && columnValue.GetType() == typeof(string) || columnValue.GetType() == typeof(decimal) && !isDecimal || columnValue.GetType() == typeof(int) && !isInt || input == "") { UpdateRecordsFromTables(tableName, columnValues, tablePrimaryKey); }
+                            if (containsAnInt && columnValue.GetType() == typeof(string) || columnValue.GetType() == typeof(decimal) && !isDecimal || columnValue.GetType() == typeof(int) && !isInt || input == "") { UpdateRecordsFromTables(tableName, columnValues, tablePrimaryKey); }
 
-                        updateCommand.Parameters.AddWithValue($"@{columnHeaders}", input);
-                        updateCommand.CommandText += $"{columnHeaders} = @{columnHeaders}, ";
+                            SQLiteCommand secondaryKeyCommands = new SQLiteCommand($@"UPDATE {tableName}
+                            SET {columnHeaders} = '{input}'
+                            WHERE {tablePrimaryKey} = {userInputtedId}
+                            ", conn);
+                            secondaryKeyCommands.ExecuteNonQuery();
+                        }
                     }
-                    // }
-                    // catch(Exception ex) when (ex is FormatException || ex is OverflowException) { UpdateRecordsFromTables(tableName, columnValues, tablePrimaryKey); }
+                    catch (Exception ex) when (ex is FormatException || ex is OverflowException) { UpdateRecordsFromTables(tableName, columnValues, tablePrimaryKey); }
                 }
                 validateInputs = true;
             }
-
-            // updateCommand.CommandText = updateCommand.CommandText.TrimEnd(',', ' ') + $" WHERE {tablePrimaryKey} = @{tablePrimaryKey}";
-            // updateCommand.Parameters.AddWithValue($"@{tablePrimaryKey}", userInputtedId);
-
-            // updateCommand.ExecuteNonQuery();
 
             Console.WriteLine("Item updated, press any key to continue");
             Console.ReadKey();
