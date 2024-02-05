@@ -16,6 +16,7 @@ using System.Net.Security;
 using System.Runtime.InteropServices;
 using System.Diagnostics;
 using System.Data.SqlTypes;
+using System.Diagnostics.CodeAnalysis;
 
 namespace NEA_Project
 {
@@ -68,7 +69,7 @@ namespace NEA_Project
                 if (clearScreen >= 3) { MainMenu(); }
             }
             Console.ReadKey();
-        } //fine don't touch
+        }
         public static void AdminPage()
         {
             Console.Clear();
@@ -121,7 +122,7 @@ namespace NEA_Project
                 clearScreen++;
                 if (clearScreen >= 3) { AdminPage(); }
             }
-        } //fine don't touch
+        }
         public static void CheckAdminStockPanel(string tableName)
         {
             Console.Clear();
@@ -133,8 +134,6 @@ namespace NEA_Project
             int itemId = 0;
             string tablePrimaryKey = "";
             List<int> availableTableIds = new List<int>();
-
-
             Dictionary<string, object> columnValues = new Dictionary<string, object>();
             Dictionary<string, Dictionary<string, Type>> getDatabaseColumnHeaders = GetColumnHeaders();
             Console.WriteLine($"These are the currently listed {tableName} in the database: \n");
@@ -252,7 +251,7 @@ namespace NEA_Project
                     if (clearScreen >= 3) { CheckAdminStockPanel(tableName); }
                 }
             }
-        } // fine don't touch mostly
+        }
         public static Dictionary<string, Dictionary<string, Type>> GetColumnHeaders()
         {
             Dictionary<string, Dictionary<string, Type>> getDatabaseColumnHeaders = new Dictionary<string, Dictionary<string, Type>>
@@ -298,7 +297,7 @@ namespace NEA_Project
             // initialised a nested dictionary with the keys of it being the column headers and also the values of it inferring their types to the contained dictionary
 
             return getDatabaseColumnHeaders;
-        } // fine don't touch
+        }
         public static void ChooseCRUDDecision(string tableName, bool DoRecordItemsExist, int itemId, Dictionary<string, object> columnValues, Dictionary<string, Type> columnHeadersMapped, List<int> availableTableIds, string tablePrimaryKey)
         {
             int clearScreen = 0;
@@ -343,7 +342,7 @@ namespace NEA_Project
                 clearScreen++;
                 if (clearScreen >= 3) { ChooseCRUDDecision(tableName, DoRecordItemsExist, itemId, columnValues, columnHeadersMapped, availableTableIds, tablePrimaryKey); }
             }
-        } //fine don't touch
+        }
         public static void ChooseAnalytics(string tableName)
         {
             Console.Clear();
@@ -393,8 +392,7 @@ namespace NEA_Project
                 clearScreen++;
                 if (clearScreen >= 3) { ChooseAnalytics(tableName); }
             }
-        } //fine don't touch
-        private delegate void ExecuteFilteringFunctions();
+        }
         public static void FilterTable(string tableName)
         {
             Console.Clear();
@@ -441,18 +439,6 @@ namespace NEA_Project
 
             List<string> getOptions = filterMessages[tableName];
 
-            Dictionary<string, ExecuteFilteringFunctions> filterMethods = new Dictionary<string, ExecuteFilteringFunctions>
-            {
-                {"1Products", () => FilterInputtedTables(tableName, "Price") },
-                {"2Products", () => FilterInputtedTables(tableName, "ProductName") },
-                {"3Products", () => FilterInputtedTables(tableName, "StockQuantity") },
-                {"1Customers", () => FilterInputtedTables(tableName, "FirstName") },
-                {"2Customers", () => FilterInputtedTables(tableName, "LastName") },
-                {"1Orders", () => FilterInputtedTables(tableName, "OrderDate") },
-                {"1ProductsInOrders", () => FilterInputtedTables(tableName, "Quantity") }
-            };
-
-
             foreach (var item in getOptions)
             {
                 Console.WriteLine(item);
@@ -471,16 +457,40 @@ namespace NEA_Project
                     }
                     else
                     {
-                        makeDecision = true;
                         determineResult = choice.ToString() + tableName;
-                        filterMethods[determineResult]();
+                        makeDecision = true;
+
+                        switch (determineResult)
+                        {
+                            case "1Products":
+                                FilterInputtedTables(tableName, "Price");
+                                break;
+                            case "2Products":
+                                FilterInputtedTables(tableName, "ProductName");
+                                break;
+                            case "3Products":
+                                FilterInputtedTables(tableName, "StockQuantity");
+                                break;
+                            case "1Customers":
+                                FilterInputtedTables(tableName, "FirstName");
+                                break;
+                            case "2Customers":
+                                FilterInputtedTables(tableName, "LastName");
+                                break;
+                            case "1Orders":
+                                FilterInputtedTables(tableName, "OrderDate");
+                                break;
+                            case "1ProductsInOrders":
+                                FilterInputtedTables(tableName, "Quantity");
+                                break;
+                        }
                     }
                 }
                 catch (Exception ex) when (ex is FormatException || ex is OverflowException) { Console.WriteLine($"Incorrect input, ensure your input is within 1-{getOptions.Count}"); }
                 clearScreen++;
                 if (clearScreen >= 3) { FilterTable(tableName); }
             }
-        } // mostly fine
+        }
         public static void AddRecordsToTables(bool DoRecordItemsExist, string tableName, int itemId, Dictionary<string, object> columnValues, Dictionary<string, Type> columnHeadersMapped, string tablePrimaryKey)
         {
             Console.Clear();
@@ -551,7 +561,7 @@ namespace NEA_Project
                     parameters.Clear();
                 }
             }
-        } // fine don't touch
+        }
         public static void ValidateKeys(string tableName, List<int> customerIds, List<int> productIds, List<int> orderIds)
         {
             SQLiteCommand sqlCustomers = new SQLiteCommand($"SELECT * FROM Customers", conn);
@@ -593,7 +603,7 @@ namespace NEA_Project
                 while (fetchProductId.Read()) { productIds.Add(Convert.ToInt32(fetchProductId["ProductId"])); }
                 while (fetchOrderId.Read()) { orderIds.Add(Convert.ToInt32(fetchOrderId["OrderId"])); }
             }
-        }//fine don't touch
+        }
         public static Dictionary<string, object> AddValuesToQuery(Dictionary<string, object> columnValues, int itemId, Dictionary<string, object> parameters, string tableName, List<int> customerIds, List<int> productIds, List<int> orderIds)
         {
             string whichFunction = "AddValues";
@@ -610,7 +620,7 @@ namespace NEA_Project
                     switch (output + tableName)
                     {
                         case "OrderDateOrders":
-                            Console.WriteLine("enter your desired date: ");
+                            Console.WriteLine("enter your desired date: (mm/dd/yyyy)");
                             DateTime date = DateTime.Parse(Console.ReadLine());
                             parameters.Add(output, date);
                             break;
@@ -618,7 +628,7 @@ namespace NEA_Project
                             ValidatePhoneNumber(parameters, value, whichFunction, tableName, tablePrimaryKey, itemId);
                             break;
                         case "EmailAddressCustomers":
-                            ValidateEmailAddress(parameters, value, whichFunction, null);
+                            ValidateEmailAddress(parameters, value, whichFunction, tableName, tablePrimaryKey, itemId);
                             break;
                         case "CustomerIdOrders":
                             ValidateCustomerId(tableName, customerIds, parameters, whichFunction, 0);
@@ -630,7 +640,7 @@ namespace NEA_Project
                             ValidateSecondaryKeys(tableName, productIds, orderIds, parameters, output);
                             break;
                         case "QuantityProductsInOrders":
-                            ValidateQuantity(parameters, value, whichFunction, null, tableName);
+                            ValidateQuantity(parameters, value, whichFunction, null, tableName, 0);
                             break;
                         default:
                             GetUserInputForColumnHeaders(output, parameters, columnValue);
@@ -639,8 +649,8 @@ namespace NEA_Project
                 }
             }
             return parameters;
-        } // fine don't touch
-        public static string ValidateEmailAddress(Dictionary<string, object> parameters, KeyValuePair<string, object> value, string whichFunction, SQLiteCommand updateCommand)
+        }
+        public static string ValidateEmailAddress(Dictionary<string, object> parameters, KeyValuePair<string, object> value, string whichFunction, string tableName, string tablePrimaryKey, int primaryKeyValue)
         {
             string userInput = "";
             string pattern = @"^((([a-z]|\d|[!#\$%&'\*\+\-\/=\?\^_`{\|}~]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])+(\.([a-z]|\d|[!#\$%&'\*\+\-\/=\?\^_`{\|}~]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])+)*)|((\x22)((((\x20|\x09)*(\x0d\x0a))?(\x20|\x09)+)?(([\x01-\x08\x0b\x0c\x0e-\x1f\x7f]|\x21|[\x23-\x5b]|[\x5d-\x7e]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(\\([\x01-\x09\x0b\x0c\x0d-\x7f]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF]))))*(((\x20|\x09)*(\x0d\x0a))?(\x20|\x09)+)?(\x22)))@((([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.)+(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.?$";
@@ -650,15 +660,17 @@ namespace NEA_Project
             {
                 try
                 {
-                    Console.WriteLine("enter your desired EmailAddress");
+                    Console.WriteLine("enter your desired Email Address");
                     userInput = Console.ReadLine();
                     bool isMatch = Regex.IsMatch(userInput, pattern);
 
-                    if (whichFunction == "AddValues" && isMatch) { parameters[value.Key] = userInput; patternMatched = true; }
+                    if (whichFunction == "AddValues" && isMatch) { parameters.Add("EmailAddress", userInput); patternMatched = true; } // double check this adding function works
                     else if (whichFunction == "UpdateRecords" && isMatch)
                     {
-                        updateCommand.Parameters.AddWithValue($"@{value.Key}", userInput);
-                        updateCommand.CommandText += $"{value.Key} = @{value.Key}, ";
+                        SQLiteCommand updateEmailAddress = new SQLiteCommand($@"UPDATE {tableName}
+                        SET EmailAddress = '{userInput}'
+                        WHERE {tablePrimaryKey} = {primaryKeyValue}", conn);
+                        updateEmailAddress.ExecuteNonQuery();
                         patternMatched = true;
                     }
                     else { Console.Clear(); throw new FormatException(); }
@@ -667,7 +679,7 @@ namespace NEA_Project
             }
 
             return userInput;
-        } // needs rework
+        }
         public static string ValidatePhoneNumber(Dictionary<string, object> parameters, KeyValuePair<string, object> value, string whichFunction, string tableName, string tablePrimaryKey, int primaryKeyValue)
         {
             string userInput = "";
@@ -678,11 +690,11 @@ namespace NEA_Project
             {
                 try
                 {
-                    Console.WriteLine("enter your desired PhoneNumber: ");
+                    Console.WriteLine("enter your desired Phone Number: ");
                     userInput = Console.ReadLine();
                     bool isMatch = Regex.IsMatch(userInput, phonePattern);
 
-                    if (whichFunction == "AddValues" && isMatch) { parameters[value.Key] = userInput; patternMatched = true; } // fix the parameters add 
+                    if (whichFunction == "AddValues" && isMatch) { parameters.Add("PhoneNumber", userInput); patternMatched = true; }
                     else if (whichFunction == "UpdateRecords" && isMatch)
                     {
                         SQLiteCommand updatePhoneNumber = new SQLiteCommand($@"UPDATE {tableName}
@@ -696,7 +708,7 @@ namespace NEA_Project
                 catch (Exception ex) when (ex is FormatException || ex is OverflowException) { Console.WriteLine("Incorrect Phone Number, Please try again"); }
             }
             return userInput;
-        } // needs rework
+        }
         public static Dictionary<string, object> ValidateCustomerId(string tableName, List<int> customerIds, Dictionary<string, object> parameters, string chooseValidationMethod, int orderId)
         {
             bool isAssigned = false;
@@ -704,10 +716,7 @@ namespace NEA_Project
             SQLiteDataReader orderReader = sqlOrders.ExecuteReader();
             List<int> usedCustomerIds = new List<int>();
 
-            while (orderReader.Read())
-            {
-                usedCustomerIds.Add(Convert.ToInt32(orderReader["CustomerId"]));
-            }
+            while (orderReader.Read()) { usedCustomerIds.Add(Convert.ToInt32(orderReader["CustomerId"])); }
 
             if (!isAssigned)
             {
@@ -740,7 +749,7 @@ namespace NEA_Project
                 CheckAdminStockPanel(tableName);
             }
             return parameters;
-        }  // fine dont touch
+        }
         public static Dictionary<string, object> ValidateSecondaryKeys(string tableName, List<int> productIds, List<int> orderIds, Dictionary<string, object> parameters, string output)
         {
             bool isAssigned = false;
@@ -752,7 +761,6 @@ namespace NEA_Project
             List<int> usedOrderIds = new List<int>();
             List<int> productsOutOfStock = new List<int>();
             string outputtedErrorMessage;
-
             List<bool> isOrderIdUsed = new List<bool>();
             bool entryCheck = false;
 
@@ -789,6 +797,7 @@ namespace NEA_Project
             {
                 while (!isAssigned && output == "ProductId")
                 {
+                    System.Console.WriteLine("hello");
                     Console.WriteLine("Enter your desired ProductId");
                     int inputtedProductId = int.Parse(Console.ReadLine());
 
@@ -818,14 +827,13 @@ namespace NEA_Project
                 CheckAdminStockPanel(tableName);
             }
             return parameters;
-        }// fine dont touch
-        public static int ValidateQuantity(Dictionary<string, object> parameters, KeyValuePair<string, object> value, string whichFunction, SQLiteCommand updateCommand, string tableName)
+        }
+        public static int ValidateQuantity(Dictionary<string, object> parameters, KeyValuePair<string, object> value, string whichFunction, SQLiteCommand updateCommand, string tableName, int userInputtedId)
         {
             bool isAssigned = false;
             int inputtedQuantity = 0;
             int getProductId = 0;
             int availableQuantity = 0;
-            // SQLiteCommand updateCommand = new SQLiteCommand($"UPDATE {tableName} SET ", conn);
 
             foreach (var item in parameters) { if (item.Key == "ProductId") { getProductId = Convert.ToInt32(item.Value); } }
 
@@ -851,15 +859,74 @@ namespace NEA_Project
                 else if (whichFunction == "AddValues") { Console.Clear(); Console.WriteLine("That amount of stock is not available, check if the product is in stock if needed"); }
                 else
                 {
-                    Console.WriteLine(whichFunction);
-                    //updateCommand = new SQLiteCommand($"UPDATE {tableName} SET @{value.Value} = {inputtedQuantity}", conn);
-
-                    updateCommand.Parameters.AddWithValue($"@{value.Value}", inputtedQuantity);
-                    updateCommand.CommandText += $"{value.Value} = @{value.Value}, ";
+                    SQLiteCommand updateOrderDate = new SQLiteCommand($@"UPDATE {tableName} 
+                        SET Quantity = '{inputtedQuantity}'
+                        WHERE ProductInOrderId = {userInputtedId};", conn);
+                    updateOrderDate.ExecuteNonQuery();
                     isAssigned = true;
-                } // when in an update command, 
+                }
             }
-            return inputtedQuantity; //fix (working on this)
+            return inputtedQuantity;
+        }
+        public static void ValidateProductId(string tableName, string tablePrimaryKey, int primaryKeyValue)
+        {
+            bool isValidated = false;
+            SQLiteCommand getProductIds = new SQLiteCommand("SELECT ProductId FROM Products", conn);
+            SQLiteDataReader fetchProductIds = getProductIds.ExecuteReader();
+            List<int> productIds = new List<int>();
+
+            while (fetchProductIds.Read()) { productIds.Add(Convert.ToInt32(fetchProductIds["ProductId"])); }
+
+            while (!isValidated)
+            {
+                try
+                {
+                    Console.WriteLine("Enter in your desired productId");
+                    int userInputtedProductId = int.Parse(Console.ReadLine());
+
+                    if (!productIds.Contains(userInputtedProductId)) { Console.Clear(); ValidateProductId(tableName, tablePrimaryKey, primaryKeyValue); }
+                    else
+                    {
+                        SQLiteCommand productIdCommand = new SQLiteCommand($@"UPDATE {tableName}
+                        SET ProductId = '{userInputtedProductId}'
+                        WHERE {tablePrimaryKey} = {primaryKeyValue}
+                        ", conn);
+                        productIdCommand.ExecuteNonQuery();
+                    }
+                    isValidated = true;
+                }
+                catch (Exception ex) when (ex is FormatException || ex is OverflowException) { Console.Clear(); Console.WriteLine("That product id is not available, try again inputting a correct one"); }
+            }
+        }
+        public static void ValidateOrderId(string tableName, string tablePrimaryKey, int primaryKeyValue)
+        {
+            bool isValidated = false;
+            SQLiteCommand orderIds = new SQLiteCommand("SELECT OrderId FROM Orders", conn);
+            SQLiteDataReader fetchorderIds = orderIds.ExecuteReader();
+            List<int> orderIdList = new List<int>();
+
+            while (fetchorderIds.Read()) { orderIdList.Add(Convert.ToInt32(fetchorderIds["OrderId"])); }
+
+            while (!isValidated)
+            {
+                try
+                {
+                    Console.WriteLine("Enter in your desired OrderId");
+                    int userInputtedOrderId = int.Parse(Console.ReadLine());
+
+                    if (!orderIdList.Contains(userInputtedOrderId)) { Console.Clear(); ValidateOrderId(tableName, tablePrimaryKey, primaryKeyValue); }
+                    else
+                    {
+                        SQLiteCommand orderIdCommand = new SQLiteCommand($@"UPDATE {tableName}
+                        SET OrderId = '{userInputtedOrderId}'
+                        WHERE {tablePrimaryKey} = {primaryKeyValue}
+                        ", conn);
+                        orderIdCommand.ExecuteNonQuery();
+                    }
+                    isValidated = true;
+                }
+                catch (Exception ex) when (ex is FormatException || ex is OverflowException) { Console.Clear(); Console.WriteLine("That order id is not available, try again inputting a correct one"); }
+            }
         }
         public static void GetUserInputForColumnHeaders(string output, Dictionary<string, object> parameters, object columnValue)
         {
@@ -873,12 +940,10 @@ namespace NEA_Project
 
             if (stringContainsInt && columnValue.GetType() == typeof(string) || columnValue.GetType() == typeof(decimal) && !isStringDecimal || columnValue.GetType() == typeof(int) && !isStringAnInt || string.IsNullOrWhiteSpace(getUserInput)) { throw new FormatException(); }
             else { parameters.Add(output, getUserInput); }
-        } // completely fine, don't touch
+        }
         public static void UpdateRecordsFromTables(string tableName, Dictionary<string, object> columnValues, string tablePrimaryKey)
         {
-            //less verbose - DO THIS
             Console.Clear();
-
             bool isValidInt = false;
             bool validateInputs = false;
             int userInputtedId = 0;
@@ -930,15 +995,16 @@ namespace NEA_Project
                             SET {columnHeaders} = '{formattedDate}'
                             WHERE OrderId = {userInputtedId};", conn);
                             updateOrderDate.ExecuteNonQuery();
-                            // add an individual separate command here to update it individually
                         }
                         else if (columnHeaders == "PhoneNumber") { ValidatePhoneNumber(columnValues, values, whichFunction, tableName, tablePrimaryKey, userInputtedId); }
-                        else if (columnHeaders == "EmailAddress") { ValidateEmailAddress(columnValues, values, whichFunction, updateCommand); }
-                        else if (columnHeaders == "Quantity" && tableName == "ProductsInOrders") { ValidateQuantity(columnValues, values, whichFunction, updateCommand, tableName); }
+                        else if (columnHeaders == "EmailAddress") { ValidateEmailAddress(columnValues, values, whichFunction, tableName, tablePrimaryKey, userInputtedId); }
+                        else if (columnHeaders == "Quantity" && tableName == "ProductsInOrders") { ValidateQuantity(columnValues, values, whichFunction, updateCommand, tableName, userInputtedId); }
                         else if (columnHeaders == "CustomerId" && tableName == "Orders") { ValidateCustomerId(tableName, customerIds, null, "Update", userInputtedId); }
+                        else if (columnHeaders == "ProductId" && tableName == "ProductsInOrders") { ValidateProductId(tableName, tablePrimaryKey, userInputtedId); }
+                        else if (columnHeaders == "OrderId" && tableName == "ProductsInOrders") { ValidateOrderId(tableName, tablePrimaryKey, userInputtedId); }
                         else
                         {
-                            Console.WriteLine($"Enter your desired {columnHeaders}:"); // edit this when coming back ------------------------ fix the date registration as its being caught as a format exception, add each sqlCommand to each function 
+                            Console.WriteLine($"Enter your desired {columnHeaders}:");
                             string input = Console.ReadLine();
                             decimal validDecimal = 0;
                             bool containsAnInt = input.Any(char.IsDigit);
@@ -997,7 +1063,7 @@ namespace NEA_Project
                 clearScreen++;
                 if (clearScreen >= 3) { DeleteRecordsFromTables(tableName, availableTableIds, tablePrimaryKey); }
             }
-        } // completely fine, don't touch
+        }
         public static void CheckRows(string tableName)
         {
             SQLiteCommand selectCustomers = new SQLiteCommand("SELECT * FROM Customers", conn);
@@ -1012,7 +1078,7 @@ namespace NEA_Project
             Console.Clear();
 
             if (!customers.HasRows || !orders.HasRows || !products.HasRows || !productsInOrders.HasRows) { Console.WriteLine("Before using this function you must input data into each table, press any key to continue"); Console.ReadKey(); CheckAdminStockPanel(tableName); }
-        } // completely fine, don't touch
+        }
         public static void GetCustomerOrdersWithProducts(string tableName)
         {
             SQLiteCommand getSqlOrders = new SQLiteCommand($"SELECT * FROM Orders", conn);
@@ -1033,35 +1099,35 @@ namespace NEA_Project
 
                     if (availableOrderIds.Contains(userInputId))
                     {
-                        SQLiteCommand selectOrderDetails = new SQLiteCommand($@"SELECT ProductsInOrders.OrderId, Orders.OrderDate, Customers.FirstName,
-                        Customers.LastName, Products.ProductName, Products.Price, ProductsInOrders.Quantity, SUM(ProductsInOrders.Quantity * Products.Price) AS totalSpending
+                        SQLiteCommand selectOrderDetails = new SQLiteCommand($@"SELECT ProductsInOrders.Quantity AS Quantity, Orders.OrderDate AS OrderDate, 
+                        Products.ProductName AS ProductName, Products.Price AS Price, SUM (ProductsInOrders.Quantity * Products.Price) AS totalCost, Customers.FirstName AS FirstName, Customers.LastName AS LastName
                         FROM ProductsInOrders
-                        INNER JOIN Orders 
+                        RIGHT JOIN Orders
                         ON ProductsInOrders.OrderId = Orders.OrderId
-                        INNER JOIN Customers 
-                        ON Orders.CustomerId = Customers.CustomerId
-                        INNER JOIN Products 
+                        RIGHT JOIN Products
                         ON ProductsInOrders.ProductId = Products.ProductId
-                        WHERE ProductsInOrders.OrderId = {userInputId}; ", conn);
+                        RIGHT JOIN Customers
+                        ON Orders.CustomerId = Customers.CustomerId
+                        WHERE ProductsInOrders.OrderId = {userInputId};", conn);
 
+                        // get a customer name, orderid, orderdate, names, product ordered, product price, quantity ordered and total
+                        // get the orderId so we can find the customerId and productIds, 
 
                         SQLiteDataReader getOrderDetails = selectOrderDetails.ExecuteReader();
 
                         while (getOrderDetails.Read())
                         {
                             Console.Clear();
-                            int orderDetailsId = getOrderDetails.GetInt32(0);
-                            DateTime orderDetailsDate = getOrderDetails.GetDateTime(1);
-                            string firstName = getOrderDetails.GetString(2);
-                            string lastName = getOrderDetails.GetString(3);
-                            string productName = getOrderDetails.GetString(4);
-                            decimal productPrice = getOrderDetails.GetDecimal(5);
-                            int productQuantity = getOrderDetails.GetInt32(6);
-                            decimal totalSpending = getOrderDetails.GetDecimal(7);
+                            Console.WriteLine("Item found:");
+                            int quantity = Convert.ToInt32(getOrderDetails["Quantity"]);
+                            string productName = getOrderDetails["ProductName"].ToString();
+                            string date = getOrderDetails["OrderDate"].ToString();
+                            string customerFName = getOrderDetails["FirstName"].ToString();
+                            string customerLName = getOrderDetails["LastName"].ToString();
+                            decimal price = Convert.ToDecimal(getOrderDetails["Price"]);
+                            decimal total = Convert.ToDecimal(getOrderDetails["totalCost"]);
+                            Console.WriteLine($"On {date}, {customerFName} {customerLName} has ordered {quantity} of product: '{productName}' with price: £{price}, totalling their order to: £{total}");
 
-
-                            Console.WriteLine("Item found: \n");
-                            Console.WriteLine($"Order ID: {orderDetailsId}, \nOrder Date: {orderDetailsDate}, \nCustomer Name: {firstName} {lastName}, \nProduct Ordered: {productName}, \nProduct Price: £{productPrice}, \nQuantity: {productQuantity}, \nTotal: £{totalSpending}\n");
                             Console.WriteLine("Press Any Key To Return");
                             Console.ReadKey();
                             CheckAdminStockPanel(tableName);
@@ -1075,19 +1141,19 @@ namespace NEA_Project
                     Console.WriteLine("enter a valid integer index.");
                 }
             }
-        } //  touch
+        }
         public static void CalculateMostExpensiveOrder(string tableName)
         {
             Console.Clear();
             string orderMethod = GetOrderMethod();
 
-            SQLiteCommand fetchOrders = new SQLiteCommand($@"SELECT Customers.CustomerId, Customers.FirstName, Customers.LastName, SUM(Products.Price * ProductsInOrders.Quantity) AS total
+            SQLiteCommand fetchOrders = new SQLiteCommand($@"SELECT Customers.CustomerId AS CustomerId, Customers.FirstName AS FirstName, Customers.LastName AS LastName, SUM(Products.Price * ProductsInOrders.Quantity) AS total
             FROM Customers
-            LEFT JOIN Orders 
+            RIGHT JOIN Orders 
             ON Customers.CustomerId = Orders.CustomerId
-            LEFT JOIN ProductsInOrders 
+            RIGHT JOIN ProductsInOrders 
             ON Orders.OrderId = ProductsInOrders.OrderId
-            LEFT JOIN Products 
+            RIGHT JOIN Products 
             ON ProductsInOrders.ProductId = Products.ProductId
             GROUP BY Customers.CustomerId, Customers.FirstName, Customers.LastName
             ORDER BY total {orderMethod} LIMIT 3", conn);
@@ -1097,10 +1163,10 @@ namespace NEA_Project
 
             while (orderReader.Read())
             {
-                int fetchedCustomerId = orderReader.GetInt32(0);
-                string fetchedFirstName = orderReader.GetString(1);
-                string fetchedLastName = orderReader.GetString(2);
-                decimal total = orderReader.GetDecimal(3);
+                int fetchedCustomerId = Convert.ToInt32(orderReader["CustomerId"]);
+                string fetchedFirstName = orderReader["FirstName"].ToString();
+                string fetchedLastName = orderReader["LastName"].ToString();
+                decimal total = Convert.ToDecimal(orderReader["total"]);
 
                 Console.WriteLine($"The Customer With CustomerId Of: {fetchedCustomerId}, {fetchedFirstName} {fetchedLastName}, has a total spending of £{total}");
             }
@@ -1108,25 +1174,25 @@ namespace NEA_Project
             Console.WriteLine("\nPress Any Key To Continue");
             Console.ReadKey();
             CheckAdminStockPanel(tableName);
-        } // touch
+        }
         public static void GetAverageCustomerSpending(string tableName)
         {
-            SQLiteCommand getCustomerOrders = new SQLiteCommand($@"SELECT ProductsInOrders.ProductId, AVG(ProductsInOrders.Quantity * Products.Price) AS averageCustomerSpending
+            SQLiteCommand getCustomerOrders = new SQLiteCommand($@"SELECT AVG(ProductsInOrders.Quantity * Products.Price) AS averageCustomerSpending
             FROM ProductsInOrders 
-            INNER JOIN Products 
+            RIGHT JOIN Products 
             ON ProductsInOrders.ProductId = Products.ProductId ", conn);
             SQLiteDataReader spendingReader = getCustomerOrders.ExecuteReader();
             Console.Clear();
 
             while (spendingReader.Read())
             {
-                decimal averageCustomerSpending = spendingReader.GetDecimal(1);
+                decimal averageCustomerSpending = Convert.ToDecimal(spendingReader["averageCustomerSpending"]);
                 Console.WriteLine($"The average amount a customer spends on their orders are: £{Math.Round(averageCustomerSpending)}");
             }
             Console.WriteLine("Press any key to continue");
             Console.ReadKey();
             CheckAdminStockPanel(tableName);
-        } // maybe look
+        }
         public static void GetAverageQuantityOfItems(string tableName)
         {
             SQLiteCommand getAverageQuantity = new SQLiteCommand($@"SELECT AVG(Quantity) AS averageQuantity FROM ProductsInOrders", conn);
@@ -1134,13 +1200,13 @@ namespace NEA_Project
 
             while (averageQuantityReader.Read())
             {
-                decimal averageQuantity = averageQuantityReader.GetDecimal(0);
+                decimal averageQuantity = Convert.ToDecimal(averageQuantityReader["averageQuantity"]);
                 Console.WriteLine($"The average quantity of items a customer orders is: {Math.Round(averageQuantity)}");
             }
             Console.WriteLine("Press any key to continue");
             Console.ReadKey();
             CheckAdminStockPanel(tableName);
-        }//fine don't touch
+        }
         public static void FilterInputtedTables(string tableName, string whichFilterMethod)
         {
             string whichOrderMethod = GetOrderMethod();
@@ -1170,7 +1236,7 @@ namespace NEA_Project
             Console.WriteLine("Items sorted, press any key to continue");
             Console.ReadKey();
             CheckAdminStockPanel(tableName);
-        } // completely fine, don't touch
+        }
         public static string GetOrderMethod()
         {
             Console.Clear();
@@ -1190,7 +1256,7 @@ namespace NEA_Project
                 catch (Exception ex) when (ex is FormatException) { Console.Clear(); Console.WriteLine("Invalid order property inputted"); }
             }
             return orderMethod;
-        } // completely fine, don't touch
+        }
         public static void MainMenu()
         {
             Console.Clear();
@@ -1199,7 +1265,6 @@ namespace NEA_Project
             Console.WriteLine("1. Admin's Page");
             Console.WriteLine("2. Exit");
             MakeLoginDecision();
-        } // completely fine, don't touch
+        }
     }
 }
-
